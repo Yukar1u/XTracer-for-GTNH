@@ -1,4 +1,4 @@
-package com.myname.mymodid;
+package com.yukar1n.x_tracer;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -10,13 +10,13 @@ import cpw.mods.fml.common.event.FMLPostInitializationEvent;
 import cpw.mods.fml.common.event.FMLPreInitializationEvent;
 import cpw.mods.fml.common.event.FMLServerStartingEvent;
 
-@Mod(modid = MyMod.MODID, version = Tags.VERSION, name = "MyMod", acceptedMinecraftVersions = "[1.7.10]")
+@Mod(modid = MyMod.MODID, version = "1.0", name = "Xtracer", acceptedMinecraftVersions = "[1.7.10]")
 public class MyMod {
 
-    public static final String MODID = "mymodid";
+    public static final String MODID = "x_tracer";
     public static final Logger LOG = LogManager.getLogger(MODID);
 
-    @SidedProxy(clientSide = "com.myname.mymodid.ClientProxy", serverSide = "com.myname.mymodid.CommonProxy")
+    @SidedProxy(clientSide = "com.yukar1n.x_tracer.ClientProxy", serverSide = "com.yukar1n.x_tracer.CommonProxy")
     public static CommonProxy proxy;
 
     @Mod.EventHandler
