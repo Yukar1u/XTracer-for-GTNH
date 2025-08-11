@@ -1,5 +1,6 @@
 package com.yukar1n.x_tracer;
 
+import com.yukar1n.x_tracer.client.ClientRender;
 import cpw.mods.fml.client.registry.ClientRegistry;
 import cpw.mods.fml.common.eventhandler.SubscribeEvent;
 import cpw.mods.fml.common.gameevent.TickEvent;
@@ -37,6 +38,7 @@ public class ClientProxy extends CommonProxy {
     @Override
     public void init(FMLInitializationEvent event) {
         super.init(event);
+        new ClientRender(); // 注册渲染事件
 
         // 这里未来会注册按键监听
     }

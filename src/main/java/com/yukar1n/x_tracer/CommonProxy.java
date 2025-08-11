@@ -1,5 +1,6 @@
 package com.yukar1n.x_tracer;
 
+import com.yukar1n.x_tracer.network.FoundBlocksMessage;
 import cpw.mods.fml.common.event.FMLInitializationEvent;
 import cpw.mods.fml.common.event.FMLPostInitializationEvent;
 import cpw.mods.fml.common.event.FMLPreInitializationEvent;
@@ -22,9 +23,14 @@ public class CommonProxy {
         network.registerMessage(
             KeyPressMessage.Handler.class,
             KeyPressMessage.class,
-            747,
+            0,
             Side.SERVER
         );
+        network.registerMessage(
+            FoundBlocksMessage.Handler.class,
+            FoundBlocksMessage.class,
+            1,
+            Side.CLIENT);
 
 
         Config.synchronizeConfiguration(event.getSuggestedConfigurationFile());
