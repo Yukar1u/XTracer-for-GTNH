@@ -22,7 +22,7 @@ public class FoundBlocksMessage implements IMessage {
     @Override
     public void fromBytes(ByteBuf buf) {
         int size = buf.readInt();
-        positions = new ArrayList<int[]>();
+        positions = new ArrayList<int[]>(size);
         for (int i = 0; i < size; i++) {
             int x = buf.readInt();
             int y = buf.readInt();
@@ -57,7 +57,9 @@ public class FoundBlocksMessage implements IMessage {
                 @Override
                 public void run() {
                     // 这里存到一个客户端全局变量中，供渲染用
-                    ClientData.setHighlightBlocks(message.getBlockPositions());
+                    List<int[]> passingPosition = message.getBlockPositions();
+                    System.out.println("x_tracer: Client got " + passingPosition.size() + " Objects");
+                    ClientData.setHighlightBlocks(passingPosition);
                 }
             });
             return null; // 不需要返回数据包

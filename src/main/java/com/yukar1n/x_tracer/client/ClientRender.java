@@ -1,5 +1,6 @@
 package com.yukar1n.x_tracer.client;
 
+import cpw.mods.fml.common.eventhandler.SubscribeEvent;
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
 import net.minecraft.client.renderer.Tessellator;
@@ -9,8 +10,11 @@ import org.lwjgl.opengl.GL11;
 
 import java.util.List;
 @SideOnly(Side.CLIENT)
+
 public class ClientRender {
-    public void render(RenderWorldLastEvent event){
+    @SubscribeEvent
+    public static void render(){
+
         List<int[]> blocks = ClientData.getHighlightBlocks();
         if (blocks.isEmpty()) return;
         double dx = RenderManager.instance.viewerPosX;
@@ -42,7 +46,7 @@ public class ClientRender {
         GL11.glPopMatrix();
     }
 
-    private void drawCubeLines(Tessellator tess, double x, double y, double z) {
+    private static void drawCubeLines(Tessellator tess, double x, double y, double z) {
         double max = 1.0;
         // 底面
         tess.addVertex(x, y, z);

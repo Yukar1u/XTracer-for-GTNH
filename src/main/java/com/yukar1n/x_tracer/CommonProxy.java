@@ -1,5 +1,6 @@
 package com.yukar1n.x_tracer;
 
+import com.yukar1n.x_tracer.client.ClientRender;
 import com.yukar1n.x_tracer.network.FoundBlocksMessage;
 import cpw.mods.fml.common.event.FMLInitializationEvent;
 import cpw.mods.fml.common.event.FMLPostInitializationEvent;
@@ -8,6 +9,7 @@ import cpw.mods.fml.common.event.FMLServerStartingEvent;
 import cpw.mods.fml.common.network.simpleimpl.SimpleNetworkWrapper;
 import com.yukar1n.x_tracer.network.KeyPressMessage;
 import cpw.mods.fml.relauncher.Side;
+import net.minecraftforge.common.MinecraftForge;
 
 public class CommonProxy {
 
@@ -18,7 +20,7 @@ public class CommonProxy {
 
     public void preInit(FMLPreInitializationEvent event) {
         // 创建网络通道，字符串必须唯一
-        network = new SimpleNetworkWrapper("a85faa12ad8ef576dc1fd95ee95ba4f473481b6d");
+        network = new SimpleNetworkWrapper("x_tracer");
         // 参数1: 处理类  参数2: 消息类  参数3: id(唯一)  参数4: 接收端
         network.registerMessage(
             KeyPressMessage.Handler.class,
@@ -31,6 +33,7 @@ public class CommonProxy {
             FoundBlocksMessage.class,
             1,
             Side.CLIENT);
+
 
 
         Config.synchronizeConfiguration(event.getSuggestedConfigurationFile());

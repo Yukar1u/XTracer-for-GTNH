@@ -5,6 +5,7 @@ import cpw.mods.fml.client.registry.ClientRegistry;
 import cpw.mods.fml.common.eventhandler.SubscribeEvent;
 import cpw.mods.fml.common.gameevent.TickEvent;
 import net.minecraft.client.settings.KeyBinding;
+import net.minecraftforge.common.MinecraftForge;
 import org.lwjgl.input.Keyboard;
 import com.yukar1n.x_tracer.network.KeyPressMessage;
 import cpw.mods.fml.common.event.FMLInitializationEvent;
@@ -19,6 +20,7 @@ public class ClientProxy extends CommonProxy {
         super.preInit(event); // 调用父类的 preInit（保留公共逻辑）
 
         // 这里未来会加客户端资源（比如渲染器）
+
 
         // 注册按键（类别是 "key.categories.x_trace"，会在控制设置中分组）
         keySearch = new KeyBinding("key.x_tracer.search", Keyboard.KEY_X, "key.categories.x_tracer");
@@ -39,7 +41,6 @@ public class ClientProxy extends CommonProxy {
     public void init(FMLInitializationEvent event) {
         super.init(event);
         new ClientRender(); // 注册渲染事件
-
         // 这里未来会注册按键监听
     }
 }
