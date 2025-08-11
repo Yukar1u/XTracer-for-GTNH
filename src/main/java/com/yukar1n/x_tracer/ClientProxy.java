@@ -10,6 +10,7 @@ import org.lwjgl.input.Keyboard;
 import com.yukar1n.x_tracer.network.KeyPressMessage;
 import cpw.mods.fml.common.event.FMLInitializationEvent;
 import cpw.mods.fml.common.event.FMLPreInitializationEvent;
+import com.yukar1n.x_tracer.client.ClientRender;
 
 public class ClientProxy extends CommonProxy {
 
@@ -28,6 +29,7 @@ public class ClientProxy extends CommonProxy {
 
         // 注册事件监听器
         cpw.mods.fml.common.FMLCommonHandler.instance().bus().register(this);
+
     }
 
     @SubscribeEvent
@@ -40,7 +42,9 @@ public class ClientProxy extends CommonProxy {
     @Override
     public void init(FMLInitializationEvent event) {
         super.init(event);
-        new ClientRender(); // 注册渲染事件
+        //new ClientRender(); // 注册渲染事件
         // 这里未来会注册按键监听
+        // 注册客户端渲染器
+        MinecraftForge.EVENT_BUS.register(new ClientRender());
     }
 }

@@ -13,22 +13,19 @@ public class ClientData {
     public static void setHighlightBlocks(List<int[]> blocks) {
         highlightBlocks = new ArrayList<>(blocks); // 复制列表避免引用问题
         lastUpdateTime = System.currentTimeMillis(); // 更新时间戳
-        renderTimer();
     }
-    public static void renderTimer(){
+
+    // 判断是否仍在渲染期
+    public static boolean shouldRender() {
         long currentTime = System.currentTimeMillis();
-        while (currentTime - lastUpdateTime <= RENDER_DURATION){
-            currentTime = System.currentTimeMillis();
-            ClientRender.render();
-        }
-        System.out.println("x_trace: Render timer Over");
-        //超时清空坐标信息
-        highlightBlocks = Collections.emptyList();
+        return (currentTime - lastUpdateTime) <= RENDER_DURATION;
     }
 
     // 获取当前有效的方块坐标
     public static List<int[]> getHighlightBlocks() {
+        if (!shouldRender()) {
+            return Collections.emptyList();
+        }
         return new ArrayList<>(highlightBlocks); // 返回副本
     }
 }
-

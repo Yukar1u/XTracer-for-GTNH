@@ -17,4 +17,16 @@ public class Config {
             configuration.save();
         }
     }
+    // Custom
+    public static String targetBlockID = "minecraft:stone";
+
+    // 设置目标方块 ID
+    public static void setTargetBlockID(String blockID) {
+        targetBlockID = blockID;
+    }
+
+    // 获取目标方块 ID
+    public static String getTargetBlockID() {
+        return targetBlockID;
+    }
 }

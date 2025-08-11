@@ -34,8 +34,6 @@ public class CommonProxy {
             1,
             Side.CLIENT);
 
-
-
         Config.synchronizeConfiguration(event.getSuggestedConfigurationFile());
 
         MyMod.LOG.info(Config.greeting);
