@@ -10,7 +10,6 @@ import org.lwjgl.input.Keyboard;
 import com.yukar1n.x_tracer.network.KeyPressMessage;
 import cpw.mods.fml.common.event.FMLInitializationEvent;
 import cpw.mods.fml.common.event.FMLPreInitializationEvent;
-import com.yukar1n.x_tracer.client.ClientRender;
 
 public class ClientProxy extends CommonProxy {
 

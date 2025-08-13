@@ -1,6 +1,5 @@
 package com.yukar1n.x_tracer;
 
-import com.yukar1n.x_tracer.client.ClientRender;
 import com.yukar1n.x_tracer.network.FoundBlocksMessage;
 import cpw.mods.fml.common.event.FMLInitializationEvent;
 import cpw.mods.fml.common.event.FMLPostInitializationEvent;
@@ -9,7 +8,6 @@ import cpw.mods.fml.common.event.FMLServerStartingEvent;
 import cpw.mods.fml.common.network.simpleimpl.SimpleNetworkWrapper;
 import com.yukar1n.x_tracer.network.KeyPressMessage;
 import cpw.mods.fml.relauncher.Side;
-import net.minecraftforge.common.MinecraftForge;
 
 public class CommonProxy {
 
@@ -35,9 +33,6 @@ public class CommonProxy {
             Side.CLIENT);
 
         Config.synchronizeConfiguration(event.getSuggestedConfigurationFile());
-
-        MyMod.LOG.info(Config.greeting);
-        MyMod.LOG.info("I am MyMod at version " + "1.0");
     }
 
     // load "Do your mod setup. Build whatever data structures you care about. Register recipes." (Remove if not needed)

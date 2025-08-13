@@ -5,7 +5,6 @@ import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.RenderGlobal;
-import net.minecraft.client.renderer.Tessellator;
 import net.minecraft.util.AxisAlignedBB;
 import net.minecraftforge.client.event.RenderWorldLastEvent;
 import org.lwjgl.opengl.GL11;
@@ -15,7 +14,6 @@ public class ClientRender {
     @SubscribeEvent
     public void onRenderWorldLast(RenderWorldLastEvent event) {
         if (!ClientData.shouldRender()) return;
-        System.out.println("x_tracer: Rendering");
 
         Minecraft mc = Minecraft.getMinecraft();
         double dx = mc.thePlayer.lastTickPosX + (mc.thePlayer.posX - mc.thePlayer.lastTickPosX) * event.partialTicks;

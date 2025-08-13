@@ -1,5 +1,6 @@
 package com.yukar1n.x_tracer;
 
+import com.yukar1n.x_tracer.command.CommandXTracer;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -10,7 +11,7 @@ import cpw.mods.fml.common.event.FMLPostInitializationEvent;
 import cpw.mods.fml.common.event.FMLPreInitializationEvent;
 import cpw.mods.fml.common.event.FMLServerStartingEvent;
 
-@Mod(modid = MyMod.MODID, version = "1.0", name = "Xtracer", acceptedMinecraftVersions = "[1.7.10]")
+@Mod(modid = MyMod.MODID, version = "1.0.1", name = "Xtracer", acceptedMinecraftVersions = "[1.7.10]")
 public class MyMod {
 
     public static final String MODID = "x_tracer";
@@ -41,6 +42,6 @@ public class MyMod {
     @Mod.EventHandler
     // register server commands in this event handler (Remove if not needed)
     public void serverStarting(FMLServerStartingEvent event) {
-        proxy.serverStarting(event);
+        event.registerServerCommand(new CommandXTracer());
     }
 }
