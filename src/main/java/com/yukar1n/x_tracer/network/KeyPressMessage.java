@@ -10,13 +10,18 @@ import cpw.mods.fml.common.network.simpleimpl.MessageContext;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.block.Block;
 import net.minecraft.entity.player.EntityPlayerMP;
+import net.minecraft.item.ItemStack;
 import net.minecraft.util.ChatComponentText;
-import net.minecraft.util.IChatComponent;
 import net.minecraft.util.MathHelper;
+import net.minecraft.util.MovingObjectPosition;
+import net.minecraft.util.Vec3;
 import net.minecraft.world.World;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
+
+import static com.yukar1n.x_tracer.Util.isGregTechBlock;
 
 public class KeyPressMessage implements IMessage{
 
@@ -38,11 +43,14 @@ public class KeyPressMessage implements IMessage{
     public static class Handler implements IMessageHandler<KeyPressMessage, IMessage>{
         @Override
         public IMessage onMessage(KeyPressMessage message, MessageContext ctx){
-            System.out.println("x_trace: Got client key input");
+
             EntityPlayerMP player = ctx.getServerHandler().playerEntity;
+            UUID playerID = player.getUniqueID();
+            System.out.println("x_trace: Got client key input, playerID: " + playerID.toString());
+
 
             // 中心和半径
-            int radius = Config.radius;
+            int radius = Config.getPlayerConfig(playerID).radius;
             int playerPosX = MathHelper.floor_double(player.posX);
             int playerPosY = MathHelper.floor_double(player.posY);
             int playerPosZ = MathHelper.floor_double(player.posZ);
@@ -70,17 +78,39 @@ public class KeyPressMessage implements IMessage{
                             continue; // 跳过超出半径的方块
                         }
 
+                        //gtName
+                        if (Config.getPlayerConfig(playerID).curMatchMode.equals("gtName")) {
+                            Block b = world.getBlock(x, y, z);
+                            String targetGtName = Config.getPlayerConfig(playerID).getTargetGtName();
+                            if (isGregTechBlock(b)) {
+                                try {
+                                    MovingObjectPosition mop = new MovingObjectPosition(x, y, z, 0, Vec3.createVectorHelper(x, y, z));
+                                    ItemStack pickStack = b.getPickBlock(mop, world, x, y, z, null);
+                                    if (pickStack != null) {
+                                        String curGtName = pickStack.getDisplayName();
+                                        if (curGtName.equals(targetGtName)) {
+                                            foundBlocks.add(new int[]{x, y, z});
+                                        }
+                                    }
+                                } catch (Exception e) {
+                                    throw new RuntimeException(e);
+                                }
+                            }
+                            continue;
+                        }
+
                         //block模式匹配逻辑
-                        if (Config.curMatchMode.equals("block")){
+                        if (Config.getPlayerConfig(playerID).curMatchMode.equals("block")){
 
                             Block curBlock = world.getBlock(x, y, z);
                             String curBlockId = Block.blockRegistry.getNameForObject(curBlock);
                             int meta = world.getBlockMetadata(x, y, z);
-                            //抓取目标方块id(Str)
-                            List<String> targetBlockIDLst = (Config.getTargetBlockIDs());
 
                             //格式： ModName:Name@meta
                             String curFullID = curBlockId + "@" + meta;
+
+                            //抓取目标方块id(Str)
+                            List<String> targetBlockIDLst = (Config.getPlayerConfig(playerID).getTargetBlockIDs());
 
                             //对比目标列表
                             for (String targetBlockID : targetBlockIDLst) {
@@ -88,12 +118,13 @@ public class KeyPressMessage implements IMessage{
                                     foundBlocks.add(new int[]{x, y, z});
                                 }
                             }
+                            continue;
                         }
 
                         //ore模式匹配逻辑
-                        if (Config.curMatchMode.equals("ore")){
+                        if (Config.getPlayerConfig(playerID).curMatchMode.equals("ore")){
                             //抓取目标矿词(Str)
-                            List<String> targetOreNameLst = Config.getTargetOreNameList();
+                            List<String> targetOreNameLst = Config.getPlayerConfig(playerID).getTargetOreNameList();
 
                             List<String> curOreNames = Util.getBlockOreNames(world, x, y, z);
 

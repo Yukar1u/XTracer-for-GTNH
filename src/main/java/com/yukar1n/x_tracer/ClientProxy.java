@@ -19,9 +19,6 @@ public class ClientProxy extends CommonProxy {
     public void preInit(FMLPreInitializationEvent event) {
         super.preInit(event); // 调用父类的 preInit（保留公共逻辑）
 
-        // 这里未来会加客户端资源（比如渲染器）
-
-
         // 注册按键（类别是 "key.categories.x_trace"，会在控制设置中分组）
         keySearch = new KeyBinding("key.x_tracer.search", Keyboard.KEY_X, "key.categories.x_tracer");
         ClientRegistry.registerKeyBinding(keySearch);
@@ -41,8 +38,6 @@ public class ClientProxy extends CommonProxy {
     @Override
     public void init(FMLInitializationEvent event) {
         super.init(event);
-        //new ClientRender(); // 注册渲染事件
-        // 这里未来会注册按键监听
         // 注册客户端渲染器
         MinecraftForge.EVENT_BUS.register(new ClientRender());
     }

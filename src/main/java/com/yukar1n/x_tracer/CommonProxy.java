@@ -17,7 +17,7 @@ public class CommonProxy {
     public static SimpleNetworkWrapper network;
 
     public void preInit(FMLPreInitializationEvent event) {
-        // 创建网络通道，字符串必须唯一
+        // 创建网络通道
         network = new SimpleNetworkWrapper("x_tracer");
         // 参数1: 处理类  参数2: 消息类  参数3: id(唯一)  参数4: 接收端
         network.registerMessage(
