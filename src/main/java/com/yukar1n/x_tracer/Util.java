@@ -100,8 +100,8 @@ public class Util {
             // 接触第一个非空气方块
             System.out.println(curBLockName);
 
-            //后台打印方块信息，调试用
-            BlockInfoPrinter.printBlockInfo(world, x,y,z);
+            //后台打印方块信息，调试用，服务器端禁用
+            //BlockInfoPrinter.printBlockInfo(world, x,y,z);
 
             // 格雷处理逻辑
             if (isGregTechBlock(curBlock)){
