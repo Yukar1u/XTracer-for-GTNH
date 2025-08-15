@@ -155,14 +155,14 @@ public class CommandXTracer extends CommandBase {
 
             case "ray":
                 if (args.length == 2){
-                    sender.addChatMessage(new ChatComponentText("§5XTracer: cUnknown argument: " +args[1]));
+                    sender.addChatMessage(new ChatComponentText("§cXTracer: Unknown argument: " +args[1]));
                     return;
                 }
                 try {
                     EntityPlayerMP player = getCommandSenderAsPlayer(sender);
                     int bol = Util.setRayTrace(player);
                     if (bol == 0){
-                        sender.addChatMessage(new ChatComponentText("§5XTracer: Failed to get block data"));
+                        sender.addChatMessage(new ChatComponentText("§cXTracer: Failed to get block data"));
                     }
                 }
                 catch (Exception e){
@@ -172,7 +172,7 @@ public class CommandXTracer extends CommandBase {
 
             case "cur":
                 if (args.length == 2) {
-                    sender.addChatMessage(new ChatComponentText("§5XTracer: cUnknown argument: " + args[1]));
+                    sender.addChatMessage(new ChatComponentText("§cXTracer: Unknown argument: " + args[1]));
                     return;
                 }
 

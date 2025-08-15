@@ -71,7 +71,11 @@ public class Util {
 
     // 获取玩家准星上的方块坐标
     public static int setRayTrace (EntityPlayerMP player) {
-        Vec3 eyePos = player.getPosition(1.0F).addVector(0, player.getEyeHeight(), 0);
+        Vec3 eyePos = Vec3.createVectorHelper(
+            player.posX,
+            player.posY + player.getEyeHeight(),
+            player.posZ
+        );
         Vec3 unitVec = player.getLookVec();
         double xIncrement = unitVec.xCoord * 0.1;
         double yIncrement = unitVec.yCoord * 0.1;
