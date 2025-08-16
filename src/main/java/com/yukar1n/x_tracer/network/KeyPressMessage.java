@@ -19,6 +19,7 @@ import net.minecraft.world.World;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 import static com.yukar1n.x_tracer.Util.isGregTechBlock;
@@ -46,7 +47,7 @@ public class KeyPressMessage implements IMessage{
 
             EntityPlayerMP player = ctx.getServerHandler().playerEntity;
             UUID playerID = player.getUniqueID();
-            System.out.println("x_trace: Got client key input, playerID: " + playerID.toString());
+            System.out.println("x_tracer: Got client key input, playerID: " + playerID.toString());
 
 
             // 中心和半径
@@ -84,13 +85,14 @@ public class KeyPressMessage implements IMessage{
                             String targetGtName = Config.getPlayerConfig(playerID).getTargetGtName();
                             if (isGregTechBlock(b)) {
                                 try {
-                                    MovingObjectPosition mop = new MovingObjectPosition(x, y, z, 0, Vec3.createVectorHelper(x, y, z));
-                                    ItemStack pickStack = b.getPickBlock(mop, world, x, y, z, null);
-                                    if (pickStack != null) {
-                                        String curGtName = pickStack.getDisplayName();
-                                        if (curGtName.equals(targetGtName)) {
-                                            foundBlocks.add(new int[]{x, y, z});
-                                        }
+                                    int meta = world.getBlockMetadata(x, y, z);
+                                    List<ItemStack> drops = b.getDrops(world, x, y, z, meta, 0);
+                                    ItemStack drop = drops.get(0);
+                                    String name = Objects.requireNonNull(drop.getItem()).getUnlocalizedName();
+                                    int damage = drop.getItemDamage();
+                                    String curGtName = name + "@" + damage;
+                                    if (curGtName.equals(targetGtName)) {
+                                        foundBlocks.add(new int[]{x, y, z});
                                     }
                                 } catch (Exception e) {
                                     throw new RuntimeException(e);

@@ -16,7 +16,7 @@ public class ClientConfig {
     public String targetBlockID = "minecraft:stone@0";
     public List<String> targetList = new ArrayList<>();
     public List<String> targetOreNameList = new ArrayList<>();
-    public String targetGtName = "Iron Ore";
+    public String targetGtName = "";
 
     public ClientConfig() {
         targetList.add(targetBlockID);

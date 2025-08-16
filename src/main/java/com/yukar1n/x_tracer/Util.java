@@ -14,6 +14,7 @@ import scala.tools.nsc.transform.patmat.Logic;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Stack;
 
 public class Util {
@@ -106,20 +107,22 @@ public class Util {
             // 格雷处理逻辑
             if (isGregTechBlock(curBlock)){
                 try {
-                    MovingObjectPosition mop = new MovingObjectPosition(x, y, z, 0, Vec3.createVectorHelper(x, y, z));
-                    ItemStack pickStack = curBlock.getPickBlock(mop, world, x, y, z, null);
-                    if (pickStack != null) {
-                        String gtName =  pickStack.getDisplayName();
-                        Config.getPlayerConfig(player.getUniqueID()).targetGtName = gtName;
-                        Config.getPlayerConfig(player.getUniqueID()).curMatchMode = "gtName";
-                        player.addChatMessage(new ChatComponentText("§aXTracer: Tracing " + gtName));
+                    int meta = world.getBlockMetadata(x, y, z);
+                    List<ItemStack> drops = curBlock.getDrops(world, x, y, z, meta, 0);
+                    ItemStack drop = drops.get(0);
+                    String name = Objects.requireNonNull(drop.getItem()).getUnlocalizedName();
+                    int damage = drop.getItemDamage();
+                    String gtName = name + "@" + damage;
+                    Config.getPlayerConfig(player.getUniqueID()).curMatchMode = "gtName";
+                    Config.getPlayerConfig(player.getUniqueID()).targetGtName = gtName;
+                    player.addChatMessage(new ChatComponentText("§aXTracer: Tracing " + gtName));
 
-                        //显示选中方块轮廓
-                        List<int[]> loc = new ArrayList<>();
-                        loc.add(new int[]{x, y, z});
-                        CommonProxy.network.sendTo(new FoundBlocksMessage(loc), player);
-                        return 1;
-                    }
+                    //显示选中方块轮廓
+                    List<int[]> loc = new ArrayList<>();
+                    loc.add(new int[]{x, y, z});
+                    CommonProxy.network.sendTo(new FoundBlocksMessage(loc), player);
+                    return 1;
+
                 } catch (Exception e) {
                     System.out.println("无法获取玩家面向名称: " + e.getMessage());
                 }
