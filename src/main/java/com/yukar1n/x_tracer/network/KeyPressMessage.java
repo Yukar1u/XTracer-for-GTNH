@@ -9,20 +9,22 @@ import cpw.mods.fml.common.network.simpleimpl.IMessageHandler;
 import cpw.mods.fml.common.network.simpleimpl.MessageContext;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.block.Block;
+import net.minecraft.entity.item.EntityItem;
 import net.minecraft.entity.player.EntityPlayerMP;
+import net.minecraft.init.Blocks;
+import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
+import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.ChatComponentText;
 import net.minecraft.util.MathHelper;
 import net.minecraft.util.MovingObjectPosition;
 import net.minecraft.util.Vec3;
 import net.minecraft.world.World;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
-import java.util.UUID;
+import java.util.*;
 
 import static com.yukar1n.x_tracer.Util.isGregTechBlock;
+import static net.minecraft.item.EnumAction.block;
 
 public class KeyPressMessage implements IMessage{
 
@@ -143,6 +145,63 @@ public class KeyPressMessage implements IMessage{
             }
             player.addChatMessage(new ChatComponentText("§b§k:" + "§bTrace Out: " + foundBlocks.size() + " §bObject§b§k:"));
             CommonProxy.network.sendTo(new FoundBlocksMessage(foundBlocks), player);
+
+            if ("True".equals(Config.getPlayerConfig(playerID).getDrop)){
+                // 存储掉落物
+                Map<String, ItemStack> mergedDrops = new HashMap<>();
+
+                for (int[] pos : foundBlocks){
+                    int x = pos[0];
+                    int y = pos[1];
+                    int z = pos[2];
+                    int oldMeta = world.getBlockMetadata(x, y, z);
+                    Block oldBlock = world.getBlock(x, y, z);
+
+                    ArrayList<ItemStack> drops = oldBlock.getDrops(world, x, y, z, oldMeta, 0);
+
+                    // 如果物品种类存在则添加值，不存在则添加新键
+                    for (ItemStack drop : drops) {
+                        if (drop != null) {
+                            String key = Item.itemRegistry.getNameForObject(drop.getItem())
+                                + ":" + drop.getItemDamage();
+                            if (mergedDrops.containsKey(key)) {
+                                mergedDrops.get(key).stackSize += drop.stackSize;
+                            } else {
+                                mergedDrops.put(key, drop.copy());
+                            }
+                        }
+                    }
+
+
+                    TileEntity oldTileEntity = world.getTileEntity(x, y, z);
+
+                    // 移除原方块的 TileEntity（如果有）
+                    if (oldTileEntity != null) {
+                        world.removeTileEntity(x, y, z);
+                    }
+
+                    Block replacement = Blocks.stone;
+                    int meta =0;
+
+                    // 设置新方块
+                    boolean success = world.setBlock(x, y, z, replacement, meta, 2);
+
+                    if (success) {
+                        world.notifyBlockChange(x, y, z, replacement);
+                        world.markBlockForUpdate(x, y, z);
+                    }
+
+
+                }
+
+                // 最后一次性丢在玩家脚下
+                for (ItemStack stack : mergedDrops.values()) {
+                    EntityItem entityItem = new EntityItem(world,
+                        player.posX, player.posY, player.posZ, stack);
+                    world.spawnEntityInWorld(entityItem);
+                }
+                player.addChatMessage(new ChatComponentText("§6Drops generated"));
+            }
             return null;
         }
     }

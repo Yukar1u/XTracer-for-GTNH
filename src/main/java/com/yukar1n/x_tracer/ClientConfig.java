@@ -7,7 +7,7 @@ import java.util.List;
 
 
 public class ClientConfig {
-    public int maxRadius = 30;
+    public int maxRadius = 100;
     public int radius = 10;
 
     // block/ore/gtName
@@ -17,6 +17,7 @@ public class ClientConfig {
     public List<String> targetList = new ArrayList<>();
     public List<String> targetOreNameList = new ArrayList<>();
     public String targetGtName = "";
+    public String getDrop = "False";
 
     public ClientConfig() {
         targetList.add(targetBlockID);

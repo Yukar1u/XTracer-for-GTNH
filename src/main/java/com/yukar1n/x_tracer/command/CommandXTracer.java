@@ -43,11 +43,12 @@ public class CommandXTracer extends CommandBase {
         if (playerID == null){return "";}
 
         sender.addChatMessage(new ChatComponentText("§b=========XTracer Usage========="));
-        sender.addChatMessage(new ChatComponentText("§6§o/xtracer block <block_id>@<meta_data>"));
-        sender.addChatMessage(new ChatComponentText("§6§o/xtracer ore <ore_id>      --Only trace ore! example: oreIron"));
-        sender.addChatMessage(new ChatComponentText("§6§o/xtracer radius <radius>   --Domain: 1 <= radius <= " + Config.getPlayerConfig(playerID).maxRadius));
-        sender.addChatMessage(new ChatComponentText("§6§o/xtracer ray                --Trace what you look at"));
-        sender.addChatMessage(new ChatComponentText("§6§o/xtracer cur                --Current settings"));
+        sender.addChatMessage(new ChatComponentText("§6/xtracer block <block_id>@<meta_data>"));
+        sender.addChatMessage(new ChatComponentText("§6/xtracer ore <ore_id>      --Only trace ore! example: oreIron"));
+        sender.addChatMessage(new ChatComponentText("§6/xtracer radius <radius>   --Domain: 1 <= radius <= " + Config.getPlayerConfig(playerID).maxRadius));
+        sender.addChatMessage(new ChatComponentText("§6/xtracer ray                --Trace what you look at"));
+        sender.addChatMessage(new ChatComponentText("§6/xtracer getdrop <bool>     --Get item drop?"));
+        sender.addChatMessage(new ChatComponentText("§6/xtracer cur                --Current settings"));
         return "";
     }
 
@@ -177,14 +178,28 @@ public class CommandXTracer extends CommandBase {
                 }
 
                 if (Objects.equals(Config.getPlayerConfig(playerID).curMatchMode, "block")) {
-                    sender.addChatMessage(new ChatComponentText("§dCurrent Tracing: " + Config.getPlayerConfig(playerID).targetBlockID));
+                    sender.addChatMessage(new ChatComponentText("§dCurrent Tracing: " + Config.getPlayerConfig(playerID).getTargetBlockIDs()));
                 } else if (Objects.equals(Config.getPlayerConfig(playerID).curMatchMode, "ore")) {
-                    sender.addChatMessage(new ChatComponentText("§dCurrent Tracing: " + Config.getPlayerConfig(playerID).targetOreNameList));
+                    sender.addChatMessage(new ChatComponentText("§dCurrent Tracing: " + Config.getPlayerConfig(playerID).getTargetOreNameList()));
                 } else if (Objects.equals(Config.getPlayerConfig(playerID).curMatchMode, "gtName")) {
                     sender.addChatMessage(new ChatComponentText("§dCurrent Tracing: " + Config.getPlayerConfig(playerID).targetGtName));
                 }
                 sender.addChatMessage(new ChatComponentText("§dCurrent MatchMode: " + Config.getPlayerConfig(playerID).curMatchMode));
                 sender.addChatMessage(new ChatComponentText("§dCurrent Radius: " + Config.getPlayerConfig(playerID).radius));
+                sender.addChatMessage(new ChatComponentText("§dGet drops: " + Config.getPlayerConfig(playerID).getDrop));
+                break;
+
+            case "getdrop":
+                if (args.length < 2) {
+                    sender.addChatMessage(new ChatComponentText("§cUsage: /xtracer getdrop <True/False>"));
+                    return;
+                }
+                if (!"False".equals(args[1]) && !"True".equals(args[1])){
+                    sender.addChatMessage(new ChatComponentText("§cUsage: /xtracer getdrop <True/False>"));
+                    return;
+                }
+                Config.getPlayerConfig(playerID).getDrop = args[1];
+                sender.addChatMessage(new ChatComponentText("§6Get drops: " + Config.getPlayerConfig(playerID).getDrop));
                 break;
 
 
