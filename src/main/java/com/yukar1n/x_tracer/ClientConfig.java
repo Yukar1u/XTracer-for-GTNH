@@ -30,7 +30,7 @@ public class ClientConfig {
 
     // 设置目标矿辞
     public void setTargetOreName(List<String> OreNameList) {
-        targetOreNameList = OreNameList;
+        targetOreNameList = new ArrayList<>(OreNameList);
     }
 
     // 获取目标方块 ID

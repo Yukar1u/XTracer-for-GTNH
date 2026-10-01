@@ -137,13 +137,18 @@ public class KeyPressMessage implements IMessage{
 
                             List<String> curOreNames = Util.getBlockOreNames(world, x, y, z);
 
+                            boolean matched = false;
                             for (String t : targetOreNameLst){
                                 for (String c : curOreNames) {
                                     if (c != null && c.equals(t)) {
-                                        foundBlocks.add(new int[]{x, y, z});
+                                        matched = true;
                                         break;
                                     }
                                 }
+                                if (matched) break;
+                            }
+                            if (matched) {
+                                foundBlocks.add(new int[]{x, y, z});
                             }
                         }
                     }
