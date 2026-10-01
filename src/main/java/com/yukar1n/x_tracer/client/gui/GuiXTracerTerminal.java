@@ -64,7 +64,7 @@ public class GuiXTracerTerminal extends GuiScreen {
         selectedOres.addAll(config.targetOreNameList);
         int left = width / 2 - (COLUMNS * CELL_SIZE) / 2;
         search = new GuiTextField(fontRendererObj, left, 34, COLUMNS * CELL_SIZE, 20);
-        radius = new GuiTextField(fontRendererObj, left, 205, 55, 20);
+        radius = new GuiTextField(fontRendererObj, left, 230, 105, 20);
         radius.setText(String.valueOf(config.radius));
         rebuildButtons();
     }
@@ -78,13 +78,13 @@ public class GuiXTracerTerminal extends GuiScreen {
         int left = gridLeft();
         buttonList.add(new GuiButton(0, left, 10, 105, 20, "Block"));
         buttonList.add(new GuiButton(1, left + 110, 10, 110, 20, "Ore"));
-        buttonList.add(new GuiButton(2, left, 230, 55, 20, "Prev"));
-        buttonList.add(new GuiButton(3, left + 60, 230, 55, 20, "Next"));
-        buttonList.add(new GuiButton(4, left + 120, 230, 100, 20, "Save target"));
+        buttonList.add(new GuiButton(2, left, 205, 55, 20, "Prev"));
+        buttonList.add(new GuiButton(3, left + 60, 205, 55, 20, "Next"));
+        buttonList.add(new GuiButton(4, left + 120, 205, 100, 20, "Save target"));
+        buttonList.add(new GuiButton(7, left + 110, 230, 110, 20, "Save radius"));
         buttonList.add(new GuiButton(5, left, 255, 105, 20, "Drops: " + drop));
-        buttonList.add(new GuiButton(6, left + 110, 255, 110, 20, "Scan"));
-        buttonList.add(new GuiButton(7, left, 280, 105, 20, "Ray select"));
-        buttonList.add(new GuiButton(8, left + 110, 280, 110, 20, "Save radius"));
+        buttonList.add(new GuiButton(6, left + 110, 255, 110, 20, "Trace"));
+        buttonList.add(new GuiButton(8, left, 280, 220, 20, "Ray select"));
     }
 
     private void refreshSearchCache() {
@@ -155,9 +155,9 @@ public class GuiXTracerTerminal extends GuiScreen {
             CommonProxy.network.sendToServer(new TerminalRequestMessage(TerminalRequestMessage.SET_DROP, "", 0, drop));
         } else if (button.id == 6) {
             CommonProxy.network.sendToServer(new TerminalRequestMessage(TerminalRequestMessage.SCAN, "", 0, drop));
-        } else if (button.id == 7) {
-            CommonProxy.network.sendToServer(new TerminalRequestMessage(TerminalRequestMessage.RAY, "", 0, drop));
         } else if (button.id == 8) {
+            CommonProxy.network.sendToServer(new TerminalRequestMessage(TerminalRequestMessage.RAY, "", 0, drop));
+        } else if (button.id == 7) {
             try {
                 CommonProxy.network.sendToServer(new TerminalRequestMessage(TerminalRequestMessage.SET_RADIUS, "", Integer.parseInt(radius.getText()), drop));
             } catch (NumberFormatException ignored) {}
@@ -226,10 +226,10 @@ public class GuiXTracerTerminal extends GuiScreen {
         drawDefaultBackground();
         int left = gridLeft();
         drawCenteredString(fontRendererObj, "XTracer Terminal", width / 2, 0, 0xFFFFFF);
-        drawString(fontRendererObj, pageType == BLOCK_PAGE ? "Placeable blocks" : "Ore Dictionary (ore* only, multi-select)", left, 58, 0xFFFFFF);
+        drawString(fontRendererObj, pageType == BLOCK_PAGE ? "Blocks" : "Ore Dictionary (ore* only, multi-select)", left, 58, 0xFFFFFF);
         search.drawTextBox();
         drawCatalog(left, mouseX, mouseY);
-        drawString(fontRendererObj, "Radius", left + 65, 210, 0xFFFFFF);
+        drawString(fontRendererObj, "Radius", left + 112, 235, 0xFFFFFF);
         radius.drawTextBox();
         super.drawScreen(mouseX, mouseY, partialTicks);
     }
