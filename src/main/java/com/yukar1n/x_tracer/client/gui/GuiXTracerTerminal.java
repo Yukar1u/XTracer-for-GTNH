@@ -172,7 +172,8 @@ public class GuiXTracerTerminal extends GuiScreen {
             List<BlockCatalogEntry> entries = groupedBlocks(filteredBlocks());
             if (index < entries.size()) {
                 BlockCatalogEntry entry = entries.get(index);
-                if (Keyboard.isKeyDown(Keyboard.KEY_LMENU) || Keyboard.isKeyDown(Keyboard.KEY_RMENU)) {
+                if ((Keyboard.isKeyDown(Keyboard.KEY_LMENU) || Keyboard.isKeyDown(Keyboard.KEY_RMENU))
+                    && hasVariants(entry, filteredBlocks())) {
                     String key = entry.registryName;
                     if (!expandedBlocks.add(key)) expandedBlocks.remove(key);
                     page = 0;
@@ -227,7 +228,9 @@ public class GuiXTracerTerminal extends GuiScreen {
                 int x = left + (i % COLUMNS) * CELL_SIZE;
                 int y = 60 + (i / COLUMNS) * CELL_SIZE;
                 drawBlockEntry(entry, x, y);
-                drawString(fontRendererObj, expandedBlocks.contains(entry.registryName) ? "-" : "+", x + 1, y + 1, 0xFFFFFF);
+                if (hasVariants(entry, filteredBlocks())) {
+                    drawString(fontRendererObj, expandedBlocks.contains(entry.registryName) ? "-" : "+", x + 1, y + 1, 0xFFFFFF);
+                }
                 if (isHovered(x, y, mouseX, mouseY)) {
                     hover = java.util.Arrays.asList(entry.displayName, entry.target());
                 }
@@ -246,6 +249,14 @@ public class GuiXTracerTerminal extends GuiScreen {
             RenderHelper.disableStandardItemLighting();
         }
         if (hover != null) drawHoveringText(hover, mouseX, mouseY, fontRendererObj);
+    }
+
+    private boolean hasVariants(BlockCatalogEntry entry, List<BlockCatalogEntry> entries) {
+        int count = 0;
+        for (BlockCatalogEntry candidate : entries) {
+            if (entry.registryName.equals(candidate.registryName) && ++count > 1) return true;
+        }
+        return false;
     }
 
     private void drawBlockEntry(BlockCatalogEntry entry, int x, int y) {
