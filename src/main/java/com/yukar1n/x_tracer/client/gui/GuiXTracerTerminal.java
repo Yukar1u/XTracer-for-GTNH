@@ -13,7 +13,6 @@ import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.gui.GuiTextField;
 import net.minecraft.client.renderer.RenderHelper;
 import net.minecraft.client.renderer.entity.RenderItem;
-import net.minecraft.item.ItemStack;
 import org.lwjgl.input.Keyboard;
 import org.lwjgl.input.Mouse;
 
@@ -21,10 +20,12 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.UUID;
 
 public class GuiXTracerTerminal extends GuiScreen {
-    private static final int PAGE_SIZE = 6;
+    private static final int COLUMNS = 9;
+    private static final int ROWS = 5;
+    private static final int PAGE_SIZE = COLUMNS * ROWS;
+    private static final int CELL_SIZE = 24;
     private static final int BLOCK_PAGE = 0;
     private static final int ORE_PAGE = 1;
 
@@ -38,7 +39,9 @@ public class GuiXTracerTerminal extends GuiScreen {
     private final RenderItem renderItem = new RenderItem();
 
     @Override
-    public boolean doesGuiPauseGame() { return false; }
+    public boolean doesGuiPauseGame() {
+        return false;
+    }
 
     @Override
     public void initGui() {
@@ -49,16 +52,20 @@ public class GuiXTracerTerminal extends GuiScreen {
         drop = "True".equals(config.getDrop);
         selectedBlock = config.targetList.isEmpty() ? "" : config.targetList.get(0);
         selectedOres.addAll(config.targetOreNameList);
-        int left = width / 2 - 110;
-        search = new GuiTextField(fontRendererObj, left, 34, 220, 20);
+        int left = width / 2 - (COLUMNS * CELL_SIZE) / 2;
+        search = new GuiTextField(fontRendererObj, left, 34, COLUMNS * CELL_SIZE, 20);
         radius = new GuiTextField(fontRendererObj, left, 205, 55, 20);
         radius.setText(String.valueOf(config.radius));
         rebuildButtons();
     }
 
+    private int gridLeft() {
+        return width / 2 - (COLUMNS * CELL_SIZE) / 2;
+    }
+
     private void rebuildButtons() {
         buttonList.clear();
-        int left = width / 2 - 110;
+        int left = gridLeft();
         buttonList.add(new GuiButton(0, left, 10, 105, 20, "Block"));
         buttonList.add(new GuiButton(1, left + 110, 10, 110, 20, "Ore"));
         buttonList.add(new GuiButton(2, left, 230, 55, 20, "Prev"));
@@ -90,7 +97,7 @@ public class GuiXTracerTerminal extends GuiScreen {
 
     @Override
     protected void actionPerformed(GuiButton button) {
-        int left = width / 2 - 110;
+        int left = gridLeft();
         if (button.id == 0 || button.id == 1) {
             pageType = button.id;
             page = 0;
@@ -134,9 +141,13 @@ public class GuiXTracerTerminal extends GuiScreen {
         super.mouseClicked(mouseX, mouseY, mouseButton);
         search.mouseClicked(mouseX, mouseY, mouseButton);
         radius.mouseClicked(mouseX, mouseY, mouseButton);
-        int left = width / 2 - 110;
-        if (mouseX < left || mouseX > left + 220 || mouseY < 60 || mouseY >= 60 + PAGE_SIZE * 23) return;
-        int index = page * PAGE_SIZE + (mouseY - 60) / 23;
+        int left = gridLeft();
+        int top = 60;
+        if (mouseX < left || mouseX >= left + COLUMNS * CELL_SIZE || mouseY < top
+            || mouseY >= top + ROWS * CELL_SIZE) return;
+        int column = (mouseX - left) / CELL_SIZE;
+        int row = (mouseY - top) / CELL_SIZE;
+        int index = page * PAGE_SIZE + row * COLUMNS + column;
         if (pageType == BLOCK_PAGE) {
             List<BlockCatalogEntry> entries = filteredBlocks();
             if (index < entries.size()) selectedBlock = entries.get(index).target();
@@ -161,14 +172,16 @@ public class GuiXTracerTerminal extends GuiScreen {
     }
 
     @Override
-    public void onGuiClosed() { Keyboard.enableRepeatEvents(false); }
+    public void onGuiClosed() {
+        Keyboard.enableRepeatEvents(false);
+    }
 
     @Override
     public void drawScreen(int mouseX, int mouseY, float partialTicks) {
         drawDefaultBackground();
-        int left = width / 2 - 110;
+        int left = gridLeft();
         drawCenteredString(fontRendererObj, "XTracer Terminal", width / 2, 0, 0xFFFFFF);
-        drawString(fontRendererObj, pageType == BLOCK_PAGE ? "Placeable blocks" : "Ore Dictionary (multi-select)", left, 58, 0xFFFFFF);
+        drawString(fontRendererObj, pageType == BLOCK_PAGE ? "Placeable blocks" : "Ore Dictionary (ore* only, multi-select)", left, 58, 0xFFFFFF);
         search.drawTextBox();
         drawCatalog(left, mouseX, mouseY);
         drawString(fontRendererObj, "Radius", left + 65, 210, 0xFFFFFF);
@@ -182,21 +195,36 @@ public class GuiXTracerTerminal extends GuiScreen {
             List<BlockCatalogEntry> entries = filteredBlocks();
             for (int i = 0; i < PAGE_SIZE && page * PAGE_SIZE + i < entries.size(); i++) {
                 BlockCatalogEntry entry = entries.get(page * PAGE_SIZE + i);
-                int y = 60 + i * 23;
-                drawString(fontRendererObj, entry.target().equals(selectedBlock) ? ">" : " ", left, y + 4, 0x55FF55);
-                renderItem.renderItemAndEffectIntoGUI(fontRendererObj, Minecraft.getMinecraft().getTextureManager(), entry.stack, left + 12, y);
-                drawString(fontRendererObj, entry.displayName, left + 35, y + 4, 0xFFFFFF);
+                int x = left + (i % COLUMNS) * CELL_SIZE;
+                int y = 60 + (i / COLUMNS) * CELL_SIZE;
+                drawBlockEntry(entry, x, y);
+                if (isHovered(x, y, mouseX, mouseY)) {
+                    drawHoveringText(java.util.Arrays.asList(entry.displayName, entry.target()), mouseX, mouseY, fontRendererObj);
+                }
             }
         } else {
             List<OreCatalogEntry> entries = filteredOres();
             for (int i = 0; i < PAGE_SIZE && page * PAGE_SIZE + i < entries.size(); i++) {
                 OreCatalogEntry entry = entries.get(page * PAGE_SIZE + i);
-                int y = 60 + i * 23;
-                drawString(fontRendererObj, selectedOres.contains(entry.name) ? "[x]" : "[ ]", left, y + 4, 0xFFFFFF);
-                renderItem.renderItemAndEffectIntoGUI(fontRendererObj, Minecraft.getMinecraft().getTextureManager(), entry.representative, left + 28, y);
-                drawString(fontRendererObj, entry.name, left + 52, y + 4, 0xFFFFFF);
+                int x = left + (i % COLUMNS) * CELL_SIZE;
+                int y = 60 + (i / COLUMNS) * CELL_SIZE;
+                drawString(fontRendererObj, selectedOres.contains(entry.name) ? "X" : "·", x + 8, y + 7, selectedOres.contains(entry.name) ? 0x55FF55 : 0xAAAAAA);
+                if (isHovered(x, y, mouseX, mouseY)) drawHoveringText(java.util.Collections.singletonList(entry.name), mouseX, mouseY, fontRendererObj);
             }
         }
         RenderHelper.disableStandardItemLighting();
     }
+
+    private void drawBlockEntry(BlockCatalogEntry entry, int x, int y) {
+        try {
+            renderItem.renderItemAndEffectIntoGUI(fontRendererObj, Minecraft.getMinecraft().getTextureManager(), entry.stack, x + 4, y + 4);
+        } catch (Throwable ignored) {
+            drawRect(x + 5, y + 5, x + 19, y + 19, 0xff555555);
+        }
+    }
+
+    private boolean isHovered(int x, int y, int mouseX, int mouseY) {
+        return mouseX >= x && mouseX < x + CELL_SIZE && mouseY >= y && mouseY < y + CELL_SIZE;
+    }
+
 }

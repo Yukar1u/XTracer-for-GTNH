@@ -29,12 +29,14 @@ public final class XTracerCatalog {
             Item item = Item.getItemFromBlock(block);
             if (item == null) continue;
             List<ItemStack> variants = new ArrayList<>();
-            item.getSubItems(item, null, variants);
-            if (variants.isEmpty()) {
-                variants.add(new ItemStack(item, 1, 0));
+            try {
+                item.getSubItems(item, null, variants);
+            } catch (Throwable ignored) {
+                continue;
             }
+            if (variants.isEmpty()) variants.add(new ItemStack(item, 1, 0));
             for (ItemStack stack : variants) {
-                if (stack == null || Item.getItemFromBlock(block) != stack.getItem()) continue;
+                if (!isUsableBlockVariant(block, item, stack)) continue;
                 String key = registryName + "@" + stack.getItemDamage();
                 if (blockKeys.add(key)) blocks.add(new BlockCatalogEntry(registryName, stack.getItemDamage(), stack.copy()));
             }
@@ -47,15 +49,28 @@ public final class XTracerCatalog {
 
         ores = new ArrayList<>();
         for (String name : OreDictionary.getOreNames()) {
+            String normalized = name.toLowerCase();
+            if (!normalized.startsWith("ore")) continue;
             List<ItemStack> entries = OreDictionary.getOres(name);
             if (entries == null || entries.isEmpty()) continue;
-            ores.add(new OreCatalogEntry(name.toLowerCase(), entries.get(0).copy()));
+            ores.add(new OreCatalogEntry(normalized));
         }
         Collections.sort(ores, new Comparator<OreCatalogEntry>() {
             @Override public int compare(OreCatalogEntry a, OreCatalogEntry b) {
                 return a.name.compareTo(b.name);
             }
         });
+    }
+
+    private static boolean isUsableBlockVariant(Block block, Item item, ItemStack stack) {
+        if (stack == null || stack.getItem() != item) return false;
+        int meta = stack.getItemDamage();
+        if (meta == OreDictionary.WILDCARD_VALUE || meta < 0 || meta > 15) return false;
+        try {
+            return Block.getBlockFromItem(stack.getItem()) == block;
+        } catch (Throwable ignored) {
+            return false;
+        }
     }
 
     public static List<BlockCatalogEntry> blocks() {
