@@ -4,11 +4,12 @@ import com.yukar1n.x_tracer.client.ClientRender;
 import com.yukar1n.x_tracer.client.gui.GuiXTracerTerminal;
 import com.yukar1n.x_tracer.item.ItemXTracerTerminal;
 import cpw.mods.fml.client.registry.ClientRegistry;
-import cpw.mods.fml.common.eventhandler.SubscribeEvent;
 import cpw.mods.fml.common.gameevent.TickEvent;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.settings.KeyBinding;
 import net.minecraftforge.common.MinecraftForge;
+import net.minecraftforge.event.entity.player.PlayerInteractEvent;
+import cpw.mods.fml.common.eventhandler.SubscribeEvent;
 import org.lwjgl.input.Keyboard;
 import com.yukar1n.x_tracer.network.KeyPressMessage;
 import cpw.mods.fml.common.event.FMLInitializationEvent;
@@ -28,11 +29,24 @@ public class ClientProxy extends CommonProxy {
 
         // 注册客户端事件监听器
         cpw.mods.fml.common.FMLCommonHandler.instance().bus().register(this);
+        MinecraftForge.EVENT_BUS.register(this);
 
     }
 
     @SubscribeEvent
-    public void onClientTick(TickEvent.ClientTickEvent event){
+    public void onPlayerInteract(PlayerInteractEvent event) {
+        if (event.entityPlayer.getHeldItem() == null
+            || event.entityPlayer.getHeldItem().getItem() != ItemXTracerTerminal.INSTANCE) {
+            return;
+        }
+        if (event.action == PlayerInteractEvent.Action.RIGHT_CLICK_BLOCK) {
+            event.setCanceled(true);
+            openTerminalGui();
+        }
+    }
+
+    @SubscribeEvent
+    public void onClientTick(TickEvent.ClientTickEvent event) {
         if (keySearch.isPressed()){
             //按键按下，发送请求到服务端
             network.sendToServer(new KeyPressMessage());

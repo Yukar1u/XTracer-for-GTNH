@@ -18,6 +18,11 @@ public class GuiXTracerTerminal extends GuiScreen {
     private boolean drop;
 
     @Override
+    public boolean doesGuiPauseGame() {
+        return false;
+    }
+
+    @Override
     public void initGui() {
         Keyboard.enableRepeatEvents(true);
         int left = width / 2 - 110;
