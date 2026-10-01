@@ -4,6 +4,7 @@ import com.yukar1n.x_tracer.gui.XTracerGuiHandler;
 import com.yukar1n.x_tracer.item.ItemXTracerTerminal;
 import com.yukar1n.x_tracer.network.FoundBlocksMessage;
 import com.yukar1n.x_tracer.network.TerminalRequestMessage;
+import com.yukar1n.x_tracer.network.TerminalStateMessage;
 import cpw.mods.fml.common.event.FMLInitializationEvent;
 import cpw.mods.fml.common.event.FMLPostInitializationEvent;
 import cpw.mods.fml.common.event.FMLPreInitializationEvent;
@@ -58,6 +59,11 @@ public class CommonProxy {
             TerminalRequestMessage.class,
             2,
             Side.SERVER);
+        network.registerMessage(
+            TerminalStateMessage.Handler.class,
+            TerminalStateMessage.class,
+            3,
+            Side.CLIENT);
 
         ItemXTracerTerminal.register();
         NetworkRegistry.INSTANCE.registerGuiHandler(MyMod.INSTANCE, new XTracerGuiHandler());

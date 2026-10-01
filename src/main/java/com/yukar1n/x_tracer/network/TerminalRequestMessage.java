@@ -1,5 +1,6 @@
 package com.yukar1n.x_tracer.network;
 
+import com.yukar1n.x_tracer.CommonProxy;
 import com.yukar1n.x_tracer.Config;
 import com.yukar1n.x_tracer.item.ItemXTracerTerminal;
 import cpw.mods.fml.common.network.simpleimpl.IMessage;
@@ -30,6 +31,7 @@ public class TerminalRequestMessage implements IMessage {
     public static final byte SCAN = 5;
     public static final byte CURRENT = 6;
     public static final byte SET_ORE_TARGETS = 7;
+    public static final byte REQUEST_STATE = 8;
     private static final int MAX_TARGETS = 64;
     private static final int MAX_TARGET_LENGTH = 128;
 
@@ -104,12 +106,33 @@ public class TerminalRequestMessage implements IMessage {
                         error(player, "Hold the terminal first.");
                         return;
                     }
+                    if (action == REQUEST_STATE) {
+                        sendState(player);
+                        return;
+                    }
                     TerminalRequestMessage request = new TerminalRequestMessage(action, targets, radius, drop);
                     if (action == SCAN) com.yukar1n.x_tracer.server.ScanService.enqueueOnServerThread(player);
                     else handle(request, player);
                 }
             });
             return null;
+        }
+
+        private void sendState(EntityPlayerMP player) {
+            com.yukar1n.x_tracer.ClientConfig config = Config.getPlayerConfig(player.getUniqueID());
+            String block = config.targetList.isEmpty() ? "" : config.targetList.get(0);
+            String ores = join(config.targetOreNameList);
+            CommonProxy.network.sendTo(new TerminalStateMessage(config.radius, "True".equals(config.getDrop),
+                config.curMatchMode, block, ores), player);
+        }
+
+        private String join(List<String> values) {
+            StringBuilder result = new StringBuilder();
+            for (String value : values) {
+                if (result.length() > 0) result.append('\n');
+                result.append(value);
+            }
+            return result.toString();
         }
 
         private void handle(TerminalRequestMessage message, EntityPlayerMP player) {

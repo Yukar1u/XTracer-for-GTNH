@@ -68,6 +68,19 @@ public class GuiXTracerTerminal extends GuiScreen {
         radius = new GuiTextField(fontRendererObj, left, 230, 105, 20);
         radius.setText(String.valueOf(config.radius));
         rebuildButtons();
+        CommonProxy.network.sendToServer(new TerminalRequestMessage(TerminalRequestMessage.REQUEST_STATE, "", 0, drop));
+    }
+
+    public void applyServerState(int serverRadius, boolean serverDrop, String mode, String blockTarget, String oreTargets) {
+        radius.setText(String.valueOf(serverRadius));
+        drop = serverDrop;
+        selectedBlock = blockTarget == null ? "" : blockTarget;
+        selectedOres.clear();
+        if (oreTargets != null && !oreTargets.isEmpty()) {
+            for (String value : oreTargets.split("\\n")) if (!value.isEmpty()) selectedOres.add(value);
+        }
+        pageType = "ore".equals(mode) ? ORE_PAGE : BLOCK_PAGE;
+        rebuildButtons();
     }
 
     private int gridLeft() {
