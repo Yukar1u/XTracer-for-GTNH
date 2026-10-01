@@ -1,35 +1,18 @@
 package com.yukar1n.x_tracer.command;
 
 import com.yukar1n.x_tracer.Config;
-import com.yukar1n.x_tracer.Util;
-import com.yukar1n.x_tracer.OreNames;
-import cpw.mods.fml.common.network.simpleimpl.MessageContext;
-import cpw.mods.fml.common.registry.GameRegistry;
-import net.minecraft.block.Block;
-import net.minecraft.client.Minecraft;
 import net.minecraft.command.CommandBase;
 import net.minecraft.command.ICommandSender;
 import net.minecraft.entity.player.EntityPlayerMP;
-import net.minecraft.item.ItemStack;
 import net.minecraft.util.ChatComponentText;
-import net.minecraftforge.oredict.OreDictionary;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 
 public class CommandXTracer extends CommandBase {
-
-    public static UUID getSenderUUID(ICommandSender sender){
-        try {
-            EntityPlayerMP player = getCommandSenderAsPlayer(sender);
-            UUID playerID = player.getUniqueID();
-            System.out.println(playerID.toString());
-            return playerID;
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+    public static UUID getSenderUUID(ICommandSender sender) {
+        EntityPlayerMP player = getCommandSenderAsPlayer(sender);
+        return player.getUniqueID();
     }
 
     @Override
@@ -39,184 +22,30 @@ public class CommandXTracer extends CommandBase {
 
     @Override
     public String getCommandUsage(ICommandSender sender) {
-
-        UUID playerID = getSenderUUID(sender);
-        if (playerID == null){return "";}
-
-        sender.addChatMessage(new ChatComponentText("§b=========XTracer Usage========="));
-        sender.addChatMessage(new ChatComponentText("§6/xtracer block <block_id>@<meta_data>"));
-        sender.addChatMessage(new ChatComponentText("§6/xtracer ore <ore_id>      --Only trace ore! example: oreIron"));
-        sender.addChatMessage(new ChatComponentText("§6/xtracer radius <radius>   --Domain: 1 <= radius <= " + Config.getPlayerConfig(playerID).maxRadius));
-        sender.addChatMessage(new ChatComponentText("§6/xtracer ray                --Trace what you look at"));
-        sender.addChatMessage(new ChatComponentText("§6/xtracer getdrop <bool>     --Get item drop?"));
-        sender.addChatMessage(new ChatComponentText("§6/xtracer cur                --Current settings"));
-        return "";
+        return "/xtracer cur";
     }
 
     @Override
     public void processCommand(ICommandSender sender, String[] args) {
-
         UUID playerID = getSenderUUID(sender);
-        if (playerID == null){return;}
-
-        if (args.length == 0) {
-            sender.addChatMessage(new ChatComponentText(getCommandUsage(sender)));
+        if (args.length != 1 || !"cur".equalsIgnoreCase(args[0])) {
+            sender.addChatMessage(new ChatComponentText("§eUsage: /xtracer cur"));
             return;
         }
-
-        //过滤参数大于2的指令
-        //if (args.length > 2) {
-        //    sender.addChatMessage(new ChatComponentText("§bNeed help? Enter </xtracer>!"));
-        //   return;
-        //}
-
-        // 获取第一个参数（指令类型）
-        String subCommand = args[0].toLowerCase();
-        switch (subCommand) {
-
-            case "block":
-                //只有一个参数的指令
-                if (args.length < 2) {
-                    sender.addChatMessage(new ChatComponentText("§cUsage: /xtracer block <block_id>@<meta_data>"));
-                    return;
-                }
-                String[] split = args[1].split("@");//[<block_id>, <meta>]
-                String[] split_ = split[0].split(":");//[mod, block]
-                if (split.length != 2){
-                    sender.addChatMessage(new ChatComponentText("§cInvalid meta Data format! Use <block_id>@<meta_data>"));
-                    return;
-                }
-                if (split_.length != 2) {
-                    sender.addChatMessage(new ChatComponentText("§cInvalid block ID format! Use <mod_name:block_name>"));
-                    return;
-                }
-
-                Block block = GameRegistry.findBlock(split_[0], split_[1]);
-                if (block != null) {
-                    List<String> target = new ArrayList<>();
-                    target.add(args[1]);
-                    Config.getPlayerConfig(playerID).curMatchMode = "block";
-                    Config.getPlayerConfig(playerID).setTargetBlockID(target);
-                    sender.addChatMessage(new ChatComponentText("§aXTracer: Tracing block " + args[1]));
-                } else {
-                    sender.addChatMessage(new ChatComponentText("§cInvalid block ID: " + args[1]));
-                }
-                break;
-
-            case "ore":
-                //只有一个参数的指令
-                if (args.length < 2) {
-                    sender.addChatMessage(new ChatComponentText("§cUsage: /xtracer ore <OreDictName>"));
-                    return;
-                }
-
-                String targetOre = OreNames.resolve(args[1]);
-                List<String> targetOreLst = new ArrayList<>();
-                if (targetOre != null) targetOreLst.add(targetOre);
-                //验证oreDict合法性
-                if (targetOre == null) {
-                    sender.addChatMessage(new ChatComponentText("§cInvalid OreDictName: " + args[1]));
-                    return;
-                }
-                //提取OreName
-                List<ItemStack> targetOreStkLst = OreDictionary.getOres(targetOre);
-                if (targetOreStkLst.isEmpty()) {
-                    sender.addChatMessage(new ChatComponentText("§cNo such ore Found with input: " + args[1]));
-                    return;
-                }
-                for (ItemStack i : targetOreStkLst) {
-                    Block b = Block.getBlockFromItem(i.getItem());
-                    if (b != null) {
-                        String oreBlockId = Block.blockRegistry.getNameForObject(b);
-                        sender.addChatMessage(new ChatComponentText("§6Add: " + oreBlockId));
-                    }
-                }
-
-                sender.addChatMessage(new ChatComponentText("§aXTracer: Tracing oreDict " + args[1]));
-                Config.getPlayerConfig(playerID).setTargetOreName(targetOreLst);
-                Config.getPlayerConfig(playerID).curMatchMode = "ore";
-                break;
-
-            case "radius":
-                //只有一个参数的指令
-                if (args.length < 2) {
-                    sender.addChatMessage(new ChatComponentText("§cUsage: /xtracer radius <radius>"));
-                    return;
-                }
-                try {
-                    int r = Integer.parseInt(args[1]);
-                    if (r < 1 || r > Config.getPlayerConfig(playerID).maxRadius){
-                        sender.addChatMessage(new ChatComponentText("§cRadius out of Range! Input: " + r + " Range: (1 <= radius <= " + Config.getPlayerConfig(playerID).maxRadius + ")"));
-                        return;
-                    }
-                    Config.getPlayerConfig(playerID).radius = Integer.parseInt(args[1]);
-                } catch (NumberFormatException e) {
-                    sender.addChatMessage(new ChatComponentText("§cRadius must be an Integer!"));
-                    return;
-                }
-                sender.addChatMessage(new ChatComponentText("§6Radius set to: §b" + args[1]));
-                break;
-
-            case "ray":
-                if (args.length == 2){
-                    sender.addChatMessage(new ChatComponentText("§cXTracer: Unknown argument: " +args[1]));
-                    return;
-                }
-                try {
-                    EntityPlayerMP player = getCommandSenderAsPlayer(sender);
-                    int bol = Util.setRayTrace(player);
-                    if (bol == 0){
-                        sender.addChatMessage(new ChatComponentText("§cXTracer: Failed to get block data"));
-                    }
-                }
-                catch (Exception e){
-                    return;
-                }
-                break;
-
-            case "cur":
-                if (args.length == 2) {
-                    sender.addChatMessage(new ChatComponentText("§cXTracer: Unknown argument: " + args[1]));
-                    return;
-                }
-
-                if (Objects.equals(Config.getPlayerConfig(playerID).curMatchMode, "block")) {
-                    sender.addChatMessage(new ChatComponentText("§dCurrent Tracing: " + Config.getPlayerConfig(playerID).getTargetBlockIDs()));
-                } else if (Objects.equals(Config.getPlayerConfig(playerID).curMatchMode, "ore")) {
-                    sender.addChatMessage(new ChatComponentText("§dCurrent Tracing: " + Config.getPlayerConfig(playerID).getTargetOreNameList()));
-                } else if (Objects.equals(Config.getPlayerConfig(playerID).curMatchMode, "gtName")) {
-                    sender.addChatMessage(new ChatComponentText("§dCurrent Tracing: " + Config.getPlayerConfig(playerID).targetGtName));
-                }
-                sender.addChatMessage(new ChatComponentText("§dCurrent MatchMode: " + Config.getPlayerConfig(playerID).curMatchMode));
-                sender.addChatMessage(new ChatComponentText("§dCurrent Radius: " + Config.getPlayerConfig(playerID).radius));
-                sender.addChatMessage(new ChatComponentText("§dGet drops: " + Config.getPlayerConfig(playerID).getDrop));
-                break;
-
-            case "getdrop":
-                if (args.length < 2) {
-                    sender.addChatMessage(new ChatComponentText("§cUsage: /xtracer getdrop <True/False>"));
-                    return;
-                }
-                args[1] = args[1].toLowerCase();
-                if (!"false".equals(args[1]) && !"true".equals(args[1])){
-                    sender.addChatMessage(new ChatComponentText("§cUsage: /xtracer getdrop <True/False>"));
-                    return;
-                }
-                Config.getPlayerConfig(playerID).getDrop = args[1].substring(0, 1).toUpperCase() + args[1].substring(1);
-                sender.addChatMessage(new ChatComponentText("§6Get drops: " + Config.getPlayerConfig(playerID).getDrop));
-                break;
-
-
-
-            default:
-                sender.addChatMessage(new ChatComponentText("§5XTracer: Unknown subcommand, Try /xtracer for help"));
-                break;
+        if (Objects.equals(Config.getPlayerConfig(playerID).curMatchMode, "block")) {
+            sender.addChatMessage(new ChatComponentText("§dCurrent Tracing: " + Config.getPlayerConfig(playerID).getTargetBlockIDs()));
+        } else if (Objects.equals(Config.getPlayerConfig(playerID).curMatchMode, "ore")) {
+            sender.addChatMessage(new ChatComponentText("§dCurrent Tracing: " + Config.getPlayerConfig(playerID).getTargetOreNameList()));
+        } else if (Objects.equals(Config.getPlayerConfig(playerID).curMatchMode, "gtName")) {
+            sender.addChatMessage(new ChatComponentText("§dCurrent Tracing: " + Config.getPlayerConfig(playerID).targetGtName));
         }
+        sender.addChatMessage(new ChatComponentText("§dCurrent MatchMode: " + Config.getPlayerConfig(playerID).curMatchMode));
+        sender.addChatMessage(new ChatComponentText("§dCurrent Radius: " + Config.getPlayerConfig(playerID).radius));
+        sender.addChatMessage(new ChatComponentText("§dGet drops: " + Config.getPlayerConfig(playerID).getDrop));
     }
-
 
     @Override
     public int getRequiredPermissionLevel() {
-        return 0; // 普通玩家可用
+        return 0;
     }
 }

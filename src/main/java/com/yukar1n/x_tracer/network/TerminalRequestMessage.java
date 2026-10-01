@@ -119,6 +119,7 @@ public class TerminalRequestMessage implements IMessage {
                     }
                     Config.getPlayerConfig(player.getUniqueID()).curMatchMode = "gtName";
                     Config.getPlayerConfig(player.getUniqueID()).targetGtName = item.getUnlocalizedName() + "@" + damage;
+                    player.addChatMessage(new ChatComponentText("§aXTracer terminal: setting updated."));
                     return;
                 }
                 String[] parts = target.split("@", -1);

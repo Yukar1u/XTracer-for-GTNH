@@ -38,6 +38,7 @@ public class GuiXTracerTerminal extends GuiScreen {
     private int page;
     private boolean drop;
     private String selectedBlock;
+    private String pendingBlock;
     private final Set<String> selectedOres = new HashSet<>();
     private final Set<String> expandedBlocks = new HashSet<>();
     private List<BlockCatalogEntry> cachedFilteredBlocks;
@@ -194,7 +195,10 @@ public class GuiXTracerTerminal extends GuiScreen {
                     String key = entry.registryName;
                     if (!expandedBlocks.add(key)) expandedBlocks.remove(key);
                     page = 0;
-                } else selectedBlock = entry.target();
+                } else {
+                    selectedBlock = entry.target();
+                    pendingBlock = selectedBlock;
+                }
             }
         } else {
             List<OreCatalogEntry> entries = filteredOres();
@@ -245,6 +249,13 @@ public class GuiXTracerTerminal extends GuiScreen {
                 int x = left + (i % COLUMNS) * CELL_SIZE;
                 int y = 60 + (i / COLUMNS) * CELL_SIZE;
                 drawBlockEntry(entry, x, y);
+                if (entry.target().equals(selectedBlock)) {
+                    drawRect(x, y, x + CELL_SIZE, y + CELL_SIZE, 0x8033ff66);
+                    drawRect(x, y, x + CELL_SIZE, y + 1, 0xff55ff88);
+                    drawRect(x, y + CELL_SIZE - 1, x + CELL_SIZE, y + CELL_SIZE, 0xff55ff88);
+                    drawRect(x, y, x + 1, y + CELL_SIZE, 0xff55ff88);
+                    drawRect(x + CELL_SIZE - 1, y, x + CELL_SIZE, y + CELL_SIZE, 0xff55ff88);
+                }
                 if (hasVariants(entry, filteredBlocks())) {
                     drawString(fontRendererObj, expandedBlocks.contains(entry.registryName) ? "-" : "+", x + 1, y + 1, 0xFFFFFF);
                 }
