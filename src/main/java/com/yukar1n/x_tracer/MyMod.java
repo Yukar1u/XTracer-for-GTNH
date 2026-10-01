@@ -1,6 +1,7 @@
 package com.yukar1n.x_tracer;
 
 import com.yukar1n.x_tracer.command.CommandXTracer;
+import com.yukar1n.x_tracer.item.ItemXTracerTerminal;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -11,10 +12,12 @@ import cpw.mods.fml.common.event.FMLPostInitializationEvent;
 import cpw.mods.fml.common.event.FMLPreInitializationEvent;
 import cpw.mods.fml.common.event.FMLServerStartingEvent;
 
-@Mod(modid = MyMod.MODID, version = "1.0.4", name = "Xtracer", acceptedMinecraftVersions = "[1.7.10]")
+@Mod(modid = MyMod.MODID, version = "1.1.5", name = "Xtracer", acceptedMinecraftVersions = "[1.7.10]")
 public class MyMod {
 
     public static final String MODID = "x_tracer";
+    public static final int TERMINAL_GUI_ID = 0;
+    public static MyMod INSTANCE;
     public static final Logger LOG = LogManager.getLogger(MODID);
 
     @SidedProxy(clientSide = "com.yukar1n.x_tracer.ClientProxy", serverSide = "com.yukar1n.x_tracer.CommonProxy")
@@ -24,6 +27,7 @@ public class MyMod {
     // preInit "Run before anything else. Read your config, create blocks, items, etc, and register them with the
     // GameRegistry." (Remove if not needed)
     public void preInit(FMLPreInitializationEvent event) {
+        INSTANCE = this;
         proxy.preInit(event);
     }
 

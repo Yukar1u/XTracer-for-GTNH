@@ -1,6 +1,8 @@
 package com.yukar1n.x_tracer;
 
 import com.yukar1n.x_tracer.client.ClientRender;
+import com.yukar1n.x_tracer.client.gui.GuiXTracerTerminal;
+import com.yukar1n.x_tracer.item.ItemXTracerTerminal;
 import cpw.mods.fml.client.registry.ClientRegistry;
 import cpw.mods.fml.common.eventhandler.SubscribeEvent;
 import cpw.mods.fml.common.gameevent.TickEvent;
@@ -23,7 +25,7 @@ public class ClientProxy extends CommonProxy {
         keySearch = new KeyBinding("key.x_tracer.search", Keyboard.KEY_X, "key.categories.x_tracer");
         ClientRegistry.registerKeyBinding(keySearch);
 
-        // 注册事件监听器
+        // 注册客户端事件监听器
         cpw.mods.fml.common.FMLCommonHandler.instance().bus().register(this);
 
     }

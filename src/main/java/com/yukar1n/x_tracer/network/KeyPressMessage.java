@@ -43,7 +43,7 @@ public class KeyPressMessage implements IMessage{
         //无数据，不实现
     }
 
-    public static class Handler implements IMessageHandler<KeyPressMessage, IMessage>{
+    public static class Handler implements IMessageHandler<KeyPressMessage, IMessage> {
         @Override
         public IMessage onMessage(KeyPressMessage message, MessageContext ctx){
 
@@ -89,13 +89,17 @@ public class KeyPressMessage implements IMessage{
                                 try {
                                     int meta = world.getBlockMetadata(x, y, z);
                                     List<ItemStack> drops = b.getDrops(world, x, y, z, meta, 0);
-                                    ItemStack drop = drops.get(0);
-                                    String name = Objects.requireNonNull(drop.getItem()).getUnlocalizedName();
-                                    int damage = drop.getItemDamage();
-                                    String curGtName = name + "@" + damage;
-                                    if (curGtName.equals(targetGtName)) {
-                                        foundBlocks.add(new int[]{x, y, z});
+                                    for (ItemStack drop : drops){
+                                        String name = Objects.requireNonNull(drop.getItem()).getUnlocalizedName();
+                                        int damage = drop.getItemDamage();
+                                        String curGtName = name + "@" + damage;
+                                        if (curGtName.equals(targetGtName)) {
+                                            foundBlocks.add(new int[]{x, y, z});
+                                            break;
+                                        }
+
                                     }
+
                                 } catch (Exception e) {
                                     throw new RuntimeException(e);
                                 }
@@ -120,6 +124,7 @@ public class KeyPressMessage implements IMessage{
                             for (String targetBlockID : targetBlockIDLst) {
                                 if (targetBlockID.equals(curFullID)) {
                                     foundBlocks.add(new int[]{x, y, z});
+                                    break;
                                 }
                             }
                             continue;
@@ -136,6 +141,7 @@ public class KeyPressMessage implements IMessage{
                                 for (String c : curOreNames) {
                                     if (c != null && c.equals(t)) {
                                         foundBlocks.add(new int[]{x, y, z});
+                                        break;
                                     }
                                 }
                             }
@@ -149,6 +155,7 @@ public class KeyPressMessage implements IMessage{
             if ("True".equals(Config.getPlayerConfig(playerID).getDrop)){
                 // 存储掉落物
                 Map<String, ItemStack> mergedDrops = new HashMap<>();
+                int itemCount = 0;
 
                 for (int[] pos : foundBlocks){
                     int x = pos[0];
@@ -169,6 +176,7 @@ public class KeyPressMessage implements IMessage{
                             } else {
                                 mergedDrops.put(key, drop.copy());
                             }
+                            itemCount += drop.stackSize;
                         }
                     }
 
@@ -180,7 +188,7 @@ public class KeyPressMessage implements IMessage{
                         world.removeTileEntity(x, y, z);
                     }
 
-                    Block replacement = Blocks.stone;
+                    Block replacement = Blocks.air;
                     int meta =0;
 
                     // 设置新方块
@@ -200,7 +208,7 @@ public class KeyPressMessage implements IMessage{
                         player.posX, player.posY, player.posZ, stack);
                     world.spawnEntityInWorld(entityItem);
                 }
-                player.addChatMessage(new ChatComponentText("§6Drops generated"));
+                player.addChatMessage(new ChatComponentText("§6" + itemCount + " Drops generated"));
             }
             return null;
         }

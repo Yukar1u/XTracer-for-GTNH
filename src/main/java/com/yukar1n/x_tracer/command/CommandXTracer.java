@@ -77,6 +77,7 @@ public class CommandXTracer extends CommandBase {
                 //只有一个参数的指令
                 if (args.length < 2) {
                     sender.addChatMessage(new ChatComponentText("§cUsage: /xtracer block <block_id>@<meta_data>"));
+                    return;
                 }
                 String[] split = args[1].split("@");//[<block_id>, <meta>]
                 String[] split_ = split[0].split(":");//[mod, block]
@@ -105,6 +106,7 @@ public class CommandXTracer extends CommandBase {
                 //只有一个参数的指令
                 if (args.length < 2) {
                     sender.addChatMessage(new ChatComponentText("§cUsage: /xtracer ore <OreDictName>"));
+                    return;
                 }
 
                 String targetOre = args[1];
@@ -194,11 +196,12 @@ public class CommandXTracer extends CommandBase {
                     sender.addChatMessage(new ChatComponentText("§cUsage: /xtracer getdrop <True/False>"));
                     return;
                 }
-                if (!"False".equals(args[1]) && !"True".equals(args[1])){
+                args[1] = args[1].toLowerCase();
+                if (!"false".equals(args[1]) && !"true".equals(args[1])){
                     sender.addChatMessage(new ChatComponentText("§cUsage: /xtracer getdrop <True/False>"));
                     return;
                 }
-                Config.getPlayerConfig(playerID).getDrop = args[1];
+                Config.getPlayerConfig(playerID).getDrop = args[1].substring(0, 1).toUpperCase() + args[1].substring(1);
                 sender.addChatMessage(new ChatComponentText("§6Get drops: " + Config.getPlayerConfig(playerID).getDrop));
                 break;
 

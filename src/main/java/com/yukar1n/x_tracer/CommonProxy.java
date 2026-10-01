@@ -1,10 +1,14 @@
 package com.yukar1n.x_tracer;
 
+import com.yukar1n.x_tracer.gui.XTracerGuiHandler;
+import com.yukar1n.x_tracer.item.ItemXTracerTerminal;
 import com.yukar1n.x_tracer.network.FoundBlocksMessage;
+import com.yukar1n.x_tracer.network.TerminalRequestMessage;
 import cpw.mods.fml.common.event.FMLInitializationEvent;
 import cpw.mods.fml.common.event.FMLPostInitializationEvent;
 import cpw.mods.fml.common.event.FMLPreInitializationEvent;
 import cpw.mods.fml.common.event.FMLServerStartingEvent;
+import cpw.mods.fml.common.network.NetworkRegistry;
 import cpw.mods.fml.common.network.simpleimpl.SimpleNetworkWrapper;
 import com.yukar1n.x_tracer.network.KeyPressMessage;
 import cpw.mods.fml.relauncher.Side;
@@ -31,7 +35,14 @@ public class CommonProxy {
             FoundBlocksMessage.class,
             1,
             Side.CLIENT);
+        network.registerMessage(
+            TerminalRequestMessage.Handler.class,
+            TerminalRequestMessage.class,
+            2,
+            Side.SERVER);
 
+        ItemXTracerTerminal.register();
+        NetworkRegistry.INSTANCE.registerGuiHandler(MyMod.INSTANCE, new XTracerGuiHandler());
         Config.synchronizeConfiguration(event.getSuggestedConfigurationFile());
     }
 
