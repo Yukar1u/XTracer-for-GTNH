@@ -6,6 +6,7 @@ import com.yukar1n.x_tracer.item.ItemXTracerTerminal;
 import cpw.mods.fml.client.registry.ClientRegistry;
 import cpw.mods.fml.common.eventhandler.SubscribeEvent;
 import cpw.mods.fml.common.gameevent.TickEvent;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.settings.KeyBinding;
 import net.minecraftforge.common.MinecraftForge;
 import org.lwjgl.input.Keyboard;
@@ -42,5 +43,10 @@ public class ClientProxy extends CommonProxy {
         super.init(event);
         // 注册客户端渲染器
         MinecraftForge.EVENT_BUS.register(new ClientRender());
+    }
+
+    @Override
+    public void openTerminalGui() {
+        Minecraft.getMinecraft().displayGuiScreen(new GuiXTracerTerminal());
     }
 }

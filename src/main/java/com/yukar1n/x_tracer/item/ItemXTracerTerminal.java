@@ -24,9 +24,8 @@ public class ItemXTracerTerminal extends Item {
     }
 
     private ItemStack openTerminal(ItemStack stack, World world, EntityPlayer player) {
-        if (!world.isRemote) {
-            player.openGui(MyMod.INSTANCE, MyMod.TERMINAL_GUI_ID, world,
-                (int) player.posX, (int) player.posY, (int) player.posZ);
+        if (world.isRemote) {
+            MyMod.proxy.openTerminalGui();
         }
         return stack;
     }
