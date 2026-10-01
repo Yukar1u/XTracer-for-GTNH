@@ -2,6 +2,7 @@ package com.yukar1n.x_tracer.command;
 
 import com.yukar1n.x_tracer.Config;
 import com.yukar1n.x_tracer.Util;
+import com.yukar1n.x_tracer.OreNames;
 import cpw.mods.fml.common.network.simpleimpl.MessageContext;
 import cpw.mods.fml.common.registry.GameRegistry;
 import net.minecraft.block.Block;
@@ -109,11 +110,11 @@ public class CommandXTracer extends CommandBase {
                     return;
                 }
 
-                String targetOre = args[1];
+                String targetOre = OreNames.resolve(args[1]);
                 List<String> targetOreLst = new ArrayList<>();
-                targetOreLst.add(targetOre.toLowerCase());
+                if (targetOre != null) targetOreLst.add(targetOre);
                 //验证oreDict合法性
-                if (!OreDictionary.doesOreNameExist(targetOre)) {
+                if (targetOre == null) {
                     sender.addChatMessage(new ChatComponentText("§cInvalid OreDictName: " + args[1]));
                     return;
                 }

@@ -156,6 +156,11 @@ public class Util {
         String className = block.getClass().getName().toLowerCase();
         return className.contains("gregtech") || className.contains("gt");
     }
+    public static boolean isSpecialVariantBlock(Block block) {
+        String name = block.getClass().getName();
+        return name.startsWith("gregtech.") || name.startsWith("bartworks.") || name.startsWith("gtPlusPlus.");
+    }
+
     // HelperMethod
     private static boolean isOre(Block block) {
         String className = block.getClass().getName().toLowerCase();

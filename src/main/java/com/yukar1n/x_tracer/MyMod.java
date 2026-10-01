@@ -12,7 +12,7 @@ import cpw.mods.fml.common.event.FMLPostInitializationEvent;
 import cpw.mods.fml.common.event.FMLPreInitializationEvent;
 import cpw.mods.fml.common.event.FMLServerStartingEvent;
 
-@Mod(modid = MyMod.MODID, version = "1.2.1", name = "Xtracer", acceptedMinecraftVersions = "[1.7.10]")
+@Mod(modid = MyMod.MODID, version = "1.2.2", name = "Xtracer", acceptedMinecraftVersions = "[1.7.10]")
 public class MyMod {
 
     public static final String MODID = "x_tracer";

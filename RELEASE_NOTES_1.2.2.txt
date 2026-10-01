@@ -1,0 +1,16 @@
+XTracer 1.2.2
+
+修复 bundle
+- Ore catalog 保留原始 OreDictionary 注册名；服务端按 Locale.ROOT 做兼容 canonical lookup，并保存小写 matchKey。
+- 搜索文本真正变化时才回到第 1 页；radius 和 Alt 键不重置分页。
+- 方块目录使用非空 CreativeTabs/API 变体枚举，普通方块用 Item.getMetadata 映射世界 metadata；GT/BartWorks/GT++ 特殊变体或 item damage > 15 使用服务端验证的 drop:item@damage 目标。
+- 方块按 registryName 分组，默认折叠；按住 Alt 点击展开/收起；普通点击仍只选择代表单项。搜索先过滤成员再分组。
+- Ore 页保持名称复选行；tooltip 在完整绘制后绘制，并保证 GUI lighting 状态恢复。
+
+GT API evidence
+- gregtech.common.blocks.GTBlockOre exposes getMaterialIndex(int), getStoneIndex(int), getMaterial(int), getStoneType(int), isSmallOre(int), isNatural(int), and GTItemOre.func_77647_b(int) returns the original damage.
+- Therefore GT ore item damage is not constrained to world metadata 0..15; the catalog does not truncate it.
+
+限制
+- 目录只覆盖 CreativeTabs/getSubBlocks/API 暴露的可枚举变体，不承诺全量；启动时记录覆盖数、DROP_ITEM 数、跳过数和错误数。
+- 未运行游戏实例；验证限于离线编译、纯逻辑检查和 jar/resource metadata 核对。

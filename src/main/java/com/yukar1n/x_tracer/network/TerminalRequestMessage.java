@@ -12,13 +12,13 @@ import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.ChatComponentText;
+import com.yukar1n.x_tracer.OreNames;
 import net.minecraftforge.oredict.OreDictionary;
 
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Set;
 
 public class TerminalRequestMessage implements IMessage {
@@ -106,13 +106,29 @@ public class TerminalRequestMessage implements IMessage {
                     return;
                 }
                 String target = message.targets.get(0);
+                if (target.startsWith("drop:")) {
+                    String[] parts = target.substring(5).split("@", -1);
+                    String itemName = parts.length == 2 ? parts[0] : "";
+                    int damage;
+                    try { damage = parts.length == 2 ? Integer.parseInt(parts[1]) : -1; }
+                    catch (NumberFormatException e) { damage = -1; }
+                    Item item = itemName.length() == 0 ? null : (Item) Item.itemRegistry.getObject(itemName);
+                    if (item == null || damage < 0 || damage > 32767) {
+                        error(player, "Invalid drop item target.");
+                        return;
+                    }
+                    Config.getPlayerConfig(player.getUniqueID()).curMatchMode = "gtName";
+                    Config.getPlayerConfig(player.getUniqueID()).targetGtName = item.getUnlocalizedName() + "@" + damage;
+                    return;
+                }
                 String[] parts = target.split("@", -1);
                 String[] id = parts.length == 2 ? parts[0].split(":", -1) : new String[0];
                 int meta;
                 try { meta = parts.length == 2 ? Integer.parseInt(parts[1]) : -1; }
                 catch (NumberFormatException e) { meta = -1; }
                 Block block = id.length == 2 ? GameRegistry.findBlock(id[0], id[1]) : null;
-                if (block == null || meta < 0 || meta > 15 || Item.getItemFromBlock(block) == null) {
+                Item blockItem = block == null ? null : Item.getItemFromBlock(block);
+                if (block == null || blockItem == null || meta < 0 || meta > 15 || blockItem.getMetadata(meta) < 0) {
                     error(player, "Invalid block target.");
                     return;
                 }
@@ -127,9 +143,8 @@ public class TerminalRequestMessage implements IMessage {
                 }
                 Set<String> normalized = new LinkedHashSet<>();
                 for (String value : message.targets) {
-                    String name = value.trim().toLowerCase(Locale.ROOT);
-                    if (name.length() > MAX_TARGET_LENGTH || !OreDictionary.doesOreNameExist(name)
-                        || OreDictionary.getOres(name).isEmpty()) {
+                    String name = OreNames.resolve(value);
+                    if (name == null || name.length() > MAX_TARGET_LENGTH) {
                         error(player, "Invalid ore dictionary name: " + value);
                         return;
                     }

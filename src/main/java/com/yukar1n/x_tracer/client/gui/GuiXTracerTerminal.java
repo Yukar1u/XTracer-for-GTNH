@@ -20,6 +20,9 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import com.yukar1n.x_tracer.SelectorLogic;
 
 public class GuiXTracerTerminal extends GuiScreen {
     private static final int COLUMNS = 9;
@@ -36,6 +39,7 @@ public class GuiXTracerTerminal extends GuiScreen {
     private boolean drop;
     private String selectedBlock;
     private final Set<String> selectedOres = new HashSet<>();
+    private final Set<String> expandedBlocks = new HashSet<>();
     private final RenderItem renderItem = new RenderItem();
 
     @Override
@@ -78,7 +82,7 @@ public class GuiXTracerTerminal extends GuiScreen {
     }
 
     private List<BlockCatalogEntry> filteredBlocks() {
-        String query = search.getText().toLowerCase();
+        String query = SelectorLogic.matchKey(search.getText());
         List<BlockCatalogEntry> result = new ArrayList<>();
         for (BlockCatalogEntry entry : XTracerCatalog.blocks()) {
             if (query.isEmpty() || entry.searchText().contains(query)) result.add(entry);
@@ -86,8 +90,23 @@ public class GuiXTracerTerminal extends GuiScreen {
         return result;
     }
 
+    private List<BlockCatalogEntry> groupedBlocks(List<BlockCatalogEntry> filtered) {
+        Map<String, List<BlockCatalogEntry>> groups = new LinkedHashMap<>();
+        for (BlockCatalogEntry entry : filtered) {
+            List<BlockCatalogEntry> members = groups.get(entry.registryName);
+            if (members == null) { members = new ArrayList<>(); groups.put(entry.registryName, members); }
+            members.add(entry);
+        }
+        List<BlockCatalogEntry> result = new ArrayList<>();
+        for (Map.Entry<String, List<BlockCatalogEntry>> group : groups.entrySet()) {
+            if (expandedBlocks.contains(group.getKey())) result.addAll(group.getValue());
+            else result.add(group.getValue().get(0));
+        }
+        return result;
+    }
+
     private List<OreCatalogEntry> filteredOres() {
-        String query = search.getText().toLowerCase();
+        String query = SelectorLogic.matchKey(search.getText());
         List<OreCatalogEntry> result = new ArrayList<>();
         for (OreCatalogEntry entry : XTracerCatalog.ores()) {
             if (query.isEmpty() || entry.searchText().contains(query)) result.add(entry);
@@ -105,7 +124,7 @@ public class GuiXTracerTerminal extends GuiScreen {
         } else if (button.id == 2) {
             if (page > 0) page--;
         } else if (button.id == 3) {
-            int size = pageType == BLOCK_PAGE ? filteredBlocks().size() : filteredOres().size();
+            int size = pageType == BLOCK_PAGE ? groupedBlocks(filteredBlocks()).size() : filteredOres().size();
             if ((page + 1) * PAGE_SIZE < size) page++;
         } else if (button.id == 4) {
             if (pageType == BLOCK_PAGE && selectedBlock != null && !selectedBlock.isEmpty()) {
@@ -130,10 +149,11 @@ public class GuiXTracerTerminal extends GuiScreen {
 
     @Override
     protected void keyTyped(char typedChar, int keyCode) {
+        String before = search.getText();
         search.textboxKeyTyped(typedChar, keyCode);
         radius.textboxKeyTyped(typedChar, keyCode);
         if (keyCode == Keyboard.KEY_ESCAPE) super.keyTyped(typedChar, keyCode);
-        page = 0;
+        page = SelectorLogic.pageAfterSearch(page, before, search.getText());
     }
 
     @Override
@@ -149,8 +169,15 @@ public class GuiXTracerTerminal extends GuiScreen {
         int row = (mouseY - top) / CELL_SIZE;
         int index = page * PAGE_SIZE + row * COLUMNS + column;
         if (pageType == BLOCK_PAGE) {
-            List<BlockCatalogEntry> entries = filteredBlocks();
-            if (index < entries.size()) selectedBlock = entries.get(index).target();
+            List<BlockCatalogEntry> entries = groupedBlocks(filteredBlocks());
+            if (index < entries.size()) {
+                BlockCatalogEntry entry = entries.get(index);
+                if (Keyboard.isKeyDown(Keyboard.KEY_LMENU) || Keyboard.isKeyDown(Keyboard.KEY_RMENU)) {
+                    String key = entry.registryName;
+                    if (!expandedBlocks.add(key)) expandedBlocks.remove(key);
+                    page = 0;
+                } else selectedBlock = entry.target();
+            }
         } else {
             List<OreCatalogEntry> entries = filteredOres();
             if (index < entries.size()) {
@@ -165,7 +192,7 @@ public class GuiXTracerTerminal extends GuiScreen {
         super.handleMouseInput();
         int wheel = Mouse.getEventDWheel();
         if (wheel != 0) {
-            int size = pageType == BLOCK_PAGE ? filteredBlocks().size() : filteredOres().size();
+            int size = pageType == BLOCK_PAGE ? groupedBlocks(filteredBlocks()).size() : filteredOres().size();
             if (wheel < 0 && (page + 1) * PAGE_SIZE < size) page++;
             if (wheel > 0 && page > 0) page--;
         }
@@ -190,16 +217,19 @@ public class GuiXTracerTerminal extends GuiScreen {
     }
 
     private void drawCatalog(int left, int mouseX, int mouseY) {
+        List<String> hover = null;
         RenderHelper.enableGUIStandardItemLighting();
+        try {
         if (pageType == BLOCK_PAGE) {
-            List<BlockCatalogEntry> entries = filteredBlocks();
+            List<BlockCatalogEntry> entries = groupedBlocks(filteredBlocks());
             for (int i = 0; i < PAGE_SIZE && page * PAGE_SIZE + i < entries.size(); i++) {
                 BlockCatalogEntry entry = entries.get(page * PAGE_SIZE + i);
                 int x = left + (i % COLUMNS) * CELL_SIZE;
                 int y = 60 + (i / COLUMNS) * CELL_SIZE;
                 drawBlockEntry(entry, x, y);
+                drawString(fontRendererObj, expandedBlocks.contains(entry.registryName) ? "-" : "+", x + 1, y + 1, 0xFFFFFF);
                 if (isHovered(x, y, mouseX, mouseY)) {
-                    drawHoveringText(java.util.Arrays.asList(entry.displayName, entry.target()), mouseX, mouseY, fontRendererObj);
+                    hover = java.util.Arrays.asList(entry.displayName, entry.target());
                 }
             }
         } else {
@@ -209,10 +239,13 @@ public class GuiXTracerTerminal extends GuiScreen {
                 int x = left + (i % COLUMNS) * CELL_SIZE;
                 int y = 60 + (i / COLUMNS) * CELL_SIZE;
                 drawString(fontRendererObj, selectedOres.contains(entry.name) ? "X" : "·", x + 8, y + 7, selectedOres.contains(entry.name) ? 0x55FF55 : 0xAAAAAA);
-                if (isHovered(x, y, mouseX, mouseY)) drawHoveringText(java.util.Collections.singletonList(entry.name), mouseX, mouseY, fontRendererObj);
+                if (isHovered(x, y, mouseX, mouseY)) hover = java.util.Collections.singletonList(entry.name);
             }
         }
-        RenderHelper.disableStandardItemLighting();
+        } finally {
+            RenderHelper.disableStandardItemLighting();
+        }
+        if (hover != null) drawHoveringText(hover, mouseX, mouseY, fontRendererObj);
     }
 
     private void drawBlockEntry(BlockCatalogEntry entry, int x, int y) {
