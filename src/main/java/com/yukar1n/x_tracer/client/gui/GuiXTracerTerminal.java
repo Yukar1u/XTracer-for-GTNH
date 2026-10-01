@@ -40,6 +40,12 @@ public class GuiXTracerTerminal extends GuiScreen {
     private String selectedBlock;
     private final Set<String> selectedOres = new HashSet<>();
     private final Set<String> expandedBlocks = new HashSet<>();
+    private List<BlockCatalogEntry> cachedFilteredBlocks;
+    private List<BlockCatalogEntry> cachedGroupedBlocks;
+    private List<OreCatalogEntry> cachedFilteredOres;
+    private String cachedQuery = "";
+    private int cachedPageType = -1;
+    private String cachedExpansionKey = "";
     private final RenderItem renderItem = new RenderItem();
 
     @Override
@@ -81,37 +87,48 @@ public class GuiXTracerTerminal extends GuiScreen {
         buttonList.add(new GuiButton(8, left + 110, 280, 110, 20, "Save radius"));
     }
 
-    private List<BlockCatalogEntry> filteredBlocks() {
+    private void refreshSearchCache() {
         String query = SelectorLogic.matchKey(search.getText());
-        List<BlockCatalogEntry> result = new ArrayList<>();
+        String expansionKey = expandedBlocks.toString();
+        if (query.equals(cachedQuery) && pageType == cachedPageType && expansionKey.equals(cachedExpansionKey)
+            && cachedFilteredBlocks != null && cachedFilteredOres != null) return;
+        cachedQuery = query;
+        cachedPageType = pageType;
+        cachedExpansionKey = expansionKey;
+        cachedFilteredBlocks = new ArrayList<>();
         for (BlockCatalogEntry entry : XTracerCatalog.blocks()) {
-            if (query.isEmpty() || entry.searchText().contains(query)) result.add(entry);
+            if (query.isEmpty() || entry.searchText().contains(query)) cachedFilteredBlocks.add(entry);
         }
-        return result;
-    }
-
-    private List<BlockCatalogEntry> groupedBlocks(List<BlockCatalogEntry> filtered) {
         Map<String, List<BlockCatalogEntry>> groups = new LinkedHashMap<>();
-        for (BlockCatalogEntry entry : filtered) {
+        for (BlockCatalogEntry entry : cachedFilteredBlocks) {
             List<BlockCatalogEntry> members = groups.get(entry.registryName);
             if (members == null) { members = new ArrayList<>(); groups.put(entry.registryName, members); }
             members.add(entry);
         }
-        List<BlockCatalogEntry> result = new ArrayList<>();
+        cachedGroupedBlocks = new ArrayList<>();
         for (Map.Entry<String, List<BlockCatalogEntry>> group : groups.entrySet()) {
-            if (expandedBlocks.contains(group.getKey())) result.addAll(group.getValue());
-            else result.add(group.getValue().get(0));
+            if (expandedBlocks.contains(group.getKey())) cachedGroupedBlocks.addAll(group.getValue());
+            else cachedGroupedBlocks.add(group.getValue().get(0));
         }
-        return result;
+        cachedFilteredOres = new ArrayList<>();
+        for (OreCatalogEntry entry : XTracerCatalog.ores()) {
+            if (query.isEmpty() || entry.searchText().contains(query)) cachedFilteredOres.add(entry);
+        }
+    }
+
+    private List<BlockCatalogEntry> filteredBlocks() {
+        refreshSearchCache();
+        return cachedFilteredBlocks;
+    }
+
+    private List<BlockCatalogEntry> groupedBlocks() {
+        refreshSearchCache();
+        return cachedGroupedBlocks;
     }
 
     private List<OreCatalogEntry> filteredOres() {
-        String query = SelectorLogic.matchKey(search.getText());
-        List<OreCatalogEntry> result = new ArrayList<>();
-        for (OreCatalogEntry entry : XTracerCatalog.ores()) {
-            if (query.isEmpty() || entry.searchText().contains(query)) result.add(entry);
-        }
-        return result;
+        refreshSearchCache();
+        return cachedFilteredOres;
     }
 
     @Override
@@ -124,7 +141,7 @@ public class GuiXTracerTerminal extends GuiScreen {
         } else if (button.id == 2) {
             if (page > 0) page--;
         } else if (button.id == 3) {
-            int size = pageType == BLOCK_PAGE ? groupedBlocks(filteredBlocks()).size() : filteredOres().size();
+            int size = pageType == BLOCK_PAGE ? groupedBlocks().size() : filteredOres().size();
             if ((page + 1) * PAGE_SIZE < size) page++;
         } else if (button.id == 4) {
             if (pageType == BLOCK_PAGE && selectedBlock != null && !selectedBlock.isEmpty()) {
@@ -169,7 +186,7 @@ public class GuiXTracerTerminal extends GuiScreen {
         int row = (mouseY - top) / CELL_SIZE;
         int index = page * PAGE_SIZE + row * COLUMNS + column;
         if (pageType == BLOCK_PAGE) {
-            List<BlockCatalogEntry> entries = groupedBlocks(filteredBlocks());
+            List<BlockCatalogEntry> entries = groupedBlocks();
             if (index < entries.size()) {
                 BlockCatalogEntry entry = entries.get(index);
                 if ((Keyboard.isKeyDown(Keyboard.KEY_LMENU) || Keyboard.isKeyDown(Keyboard.KEY_RMENU))
@@ -193,7 +210,7 @@ public class GuiXTracerTerminal extends GuiScreen {
         super.handleMouseInput();
         int wheel = Mouse.getEventDWheel();
         if (wheel != 0) {
-            int size = pageType == BLOCK_PAGE ? groupedBlocks(filteredBlocks()).size() : filteredOres().size();
+            int size = pageType == BLOCK_PAGE ? groupedBlocks().size() : filteredOres().size();
             if (wheel < 0 && (page + 1) * PAGE_SIZE < size) page++;
             if (wheel > 0 && page > 0) page--;
         }
@@ -222,7 +239,7 @@ public class GuiXTracerTerminal extends GuiScreen {
         RenderHelper.enableGUIStandardItemLighting();
         try {
         if (pageType == BLOCK_PAGE) {
-            List<BlockCatalogEntry> entries = groupedBlocks(filteredBlocks());
+            List<BlockCatalogEntry> entries = groupedBlocks();
             for (int i = 0; i < PAGE_SIZE && page * PAGE_SIZE + i < entries.size(); i++) {
                 BlockCatalogEntry entry = entries.get(page * PAGE_SIZE + i);
                 int x = left + (i % COLUMNS) * CELL_SIZE;
