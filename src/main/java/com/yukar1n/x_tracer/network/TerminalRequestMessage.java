@@ -48,7 +48,12 @@ public class TerminalRequestMessage implements IMessage {
     }
 
     public TerminalRequestMessage(List<String> targets, boolean drop) {
-        this.action = SET_ORE_TARGETS;
+        this(SET_ORE_TARGETS, targets, 0, drop);
+    }
+
+    private TerminalRequestMessage(byte action, List<String> targets, int radius, boolean drop) {
+        this.action = action;
+        this.radius = radius;
         this.drop = drop;
         this.targets = new ArrayList<>(targets);
     }
@@ -85,17 +90,25 @@ public class TerminalRequestMessage implements IMessage {
     public static class Handler implements IMessageHandler<TerminalRequestMessage, IMessage> {
         @Override
         public IMessage onMessage(TerminalRequestMessage message, MessageContext ctx) {
-            EntityPlayerMP player = ctx.getServerHandler().playerEntity;
-            ItemStack held = player.getHeldItem();
-            if (held == null || held.getItem() != ItemXTracerTerminal.INSTANCE) {
-                player.addChatMessage(new ChatComponentText("§cXTracer: Hold the terminal first."));
-                return null;
-            }
-            if (message.action == SCAN) {
-                new KeyPressMessage.Handler().onMessage(new KeyPressMessage(), ctx);
-                return null;
-            }
-            handle(message, player);
+            final java.util.UUID playerId = ctx.getServerHandler().playerEntity.getUniqueID();
+            final byte action = message.action;
+            final int radius = message.radius;
+            final boolean drop = message.drop;
+            final List<String> targets = new ArrayList<>(message.targets);
+            com.yukar1n.x_tracer.CommonProxy.serverTaskQueue.enqueue(new Runnable() {
+                @Override public void run() {
+                    EntityPlayerMP player = com.yukar1n.x_tracer.CommonProxy.findOnlinePlayer(playerId);
+                    if (player == null) return;
+                    ItemStack held = player.getHeldItem();
+                    if (held == null || held.getItem() != ItemXTracerTerminal.INSTANCE) {
+                        error(player, "Hold the terminal first.");
+                        return;
+                    }
+                    TerminalRequestMessage request = new TerminalRequestMessage(action, targets, radius, drop);
+                    if (action == SCAN) com.yukar1n.x_tracer.server.ScanService.enqueueOnServerThread(player);
+                    else handle(request, player);
+                }
+            });
             return null;
         }
 
@@ -159,7 +172,14 @@ public class TerminalRequestMessage implements IMessage {
             } else if (message.action == SET_DROP) {
                 Config.getPlayerConfig(player.getUniqueID()).getDrop = message.drop ? "True" : "False";
             } else if (message.action == RAY) {
-                if (com.yukar1n.x_tracer.Util.setRayTrace(player) == 0) return;
+                final java.util.UUID playerId = player.getUniqueID();
+                com.yukar1n.x_tracer.CommonProxy.serverTaskQueue.enqueue(new Runnable() {
+                    @Override public void run() {
+                        EntityPlayerMP current = com.yukar1n.x_tracer.CommonProxy.findOnlinePlayer(playerId);
+                        if (current != null) com.yukar1n.x_tracer.Util.setRayTrace(current);
+                    }
+                });
+                return;
             }
             player.addChatMessage(new ChatComponentText("§aXTracer terminal: setting updated."));
         }
