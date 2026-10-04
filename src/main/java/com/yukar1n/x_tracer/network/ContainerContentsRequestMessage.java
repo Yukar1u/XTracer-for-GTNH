@@ -26,7 +26,7 @@ public class ContainerContentsRequestMessage implements IMessage {
                 if(c.tile.xCoord!=message.x||c.tile.yCoord!=message.y||c.tile.zCoord!=message.z||!c.tile.isUseableByPlayer(player))return;
                 List<LongItemStorage.Entry> all=c.tile.storage().entries();int start=Math.max(0,message.page)*ContainerContentsMessage.PAGE_SIZE;List<ContainerContentsMessage.Entry> page=new ArrayList<>();
                 for(int i=start;i<all.size()&&i<start+ContainerContentsMessage.PAGE_SIZE;i++){LongItemStorage.Entry e=all.get(i);page.add(new ContainerContentsMessage.Entry(e.key().itemId(),e.key().damage(),e.count()));}
-                CommonProxy.network.sendTo(new ContainerContentsMessage(message.x,message.y,message.z,Math.max(0,message.page),c.tile.getRevision(),page),player);
+                CommonProxy.network.sendTo(new ContainerContentsMessage(message.x,message.y,message.z,Math.max(0,message.page),c.tile.getRevision(),all.size(),page),player);
             }});return null;
         }
     }

@@ -19,12 +19,11 @@ import org.lwjgl.input.Keyboard;
 import org.lwjgl.opengl.GL11;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 public class GuiXTracerStorage extends GuiContainer {
     private static final int PANEL_WIDTH = 220;
-    private static final int PANEL_HEIGHT = 360;
+    private static final int PANEL_HEIGHT = 342;
     private final TileEntityXTracerContainer tile;
     private GuiTextField name;
     private GuiTextField accepts;
@@ -35,6 +34,7 @@ public class GuiXTracerStorage extends GuiContainer {
     private final List<ContainerContentsMessage.Entry> contents = new ArrayList<>();
     private int contentPage;
     private long contentRevision;
+    private int totalEntries;
     private final RenderItem renderItem = new RenderItem();
 
     public GuiXTracerStorage(InventoryPlayer inventory, TileEntityXTracerContainer tile) {
@@ -47,18 +47,19 @@ public class GuiXTracerStorage extends GuiContainer {
     @Override public void initGui() {
         super.initGui();
         Keyboard.enableRepeatEvents(true);
-        name = field(8, 20, 204, 18);
-        accepts = field(8, 42, 204, 18);
-        excludes = field(8, 64, 204, 18);
-        buttonList.add(new GuiButton(0, guiLeft + 8, guiTop + 86, 98, 20, "Save rules"));
-        buttonList.add(new GuiButton(1, guiLeft + 114, guiTop + 86, 98, 20, "Refresh"));
-        buttonList.add(new GuiButton(2, guiLeft + 8, guiTop + 108, 98, 20, "Prev items"));
-        buttonList.add(new GuiButton(3, guiLeft + 114, guiTop + 108, 98, 20, "Next items"));
+        name = field(8, 18, 204, 18);
+        accepts = field(8, 50, 204, 18);
+        excludes = field(8, 82, 204, 18);
+        buttonList.add(new GuiButton(0, guiLeft + 8, guiTop + 108, 98, 20, "Save rules"));
+        buttonList.add(new GuiButton(1, guiLeft + 114, guiTop + 108, 98, 20, "Refresh"));
+        buttonList.add(new GuiButton(2, guiLeft + 8, guiTop + 130, 98, 20, "Prev page"));
+        buttonList.add(new GuiButton(3, guiLeft + 114, guiTop + 130, 98, 20, "Next page"));
         name.setText(tile.getCustomName());
         accepts.setText(join(tile.getAccepts()));
         excludes.setText(join(tile.getExcludes()));
         revision = tile.getRevision();
         requestContents();
+        updatePagingButtons();
         CommonProxy.network.sendToServer(ContainerEditMessage.request(tile.xCoord, tile.yCoord, tile.zCoord));
     }
 
@@ -93,16 +94,35 @@ public class GuiXTracerStorage extends GuiContainer {
         CommonProxy.network.sendToServer(new ContainerContentsRequestMessage(tile.xCoord, tile.yCoord, tile.zCoord, contentPage));
     }
 
-    public void applyContents(int page, long revision, List<ContainerContentsMessage.Entry> values) {
-        contentPage = page;
+    public void applyContents(int page, long revision, int totalEntries, List<ContainerContentsMessage.Entry> values) {
+        contentPage = Math.max(0, page);
         contentRevision = revision;
+        this.totalEntries = Math.max(0, totalEntries);
         contents.clear();
         if (values != null) contents.addAll(values);
+        updatePagingButtons();
     }
 
     private static List<String> split(String value) {
         if (value == null || value.trim().isEmpty()) return new ArrayList<>();
-        return new ArrayList<>(Arrays.asList(value.split(",")));
+        List<String> result = new ArrayList<>();
+        for (String part : value.split("[,;|，；]+")) {
+            String normalized = part.trim();
+            if (!normalized.isEmpty() && !result.contains(normalized)) result.add(normalized);
+        }
+        return result;
+    }
+
+    private int totalPages() {
+        return Math.max(1, (totalEntries + ContainerContentsMessage.PAGE_SIZE - 1) / ContainerContentsMessage.PAGE_SIZE);
+    }
+
+    private void updatePagingButtons() {
+        for (Object value : buttonList) {
+            GuiButton button = (GuiButton) value;
+            if (button.id == 2) button.enabled = contentPage > 0;
+            if (button.id == 3) button.enabled = contentPage + 1 < totalPages();
+        }
     }
 
     @Override protected void actionPerformed(GuiButton button) {
@@ -116,7 +136,7 @@ public class GuiXTracerStorage extends GuiContainer {
         } else if (button.id == 2) {
             if (contentPage > 0) { contentPage--; requestContents(); }
         } else if (button.id == 3) {
-            if (contents.size() == ContainerContentsMessage.PAGE_SIZE) { contentPage++; requestContents(); }
+            if (contentPage + 1 < totalPages()) { contentPage++; requestContents(); }
         }
     }
 
@@ -130,11 +150,12 @@ public class GuiXTracerStorage extends GuiContainer {
     @Override protected void mouseClicked(int mouseX, int mouseY, int mouseButton) {
         int localX = mouseX - guiLeft;
         int localY = mouseY - guiTop;
-        if (localY >= 148 && localY < 196 && localX >= 8 && localX < 206) {
+        if (localY >= 174 && localY < 222 && localX >= 8 && localX < 206) {
             int column = (localX - 8) / 22;
-            int row = (localY - 148) / 24;
-            int index = contentPage * ContainerContentsMessage.PAGE_SIZE + row * 9 + column;
-            if (index < contents.size() + contentPage * ContainerContentsMessage.PAGE_SIZE) {
+            int row = (localY - 174) / 24;
+            int localIndex = row * 9 + column;
+            if (localIndex < contents.size()) {
+                int index = contentPage * ContainerContentsMessage.PAGE_SIZE + localIndex;
                 CommonProxy.network.sendToServer(new ContainerExtractMessage(tile.xCoord, tile.yCoord, tile.zCoord, index, 64, contentRevision));
                 requestContents();
                 return;
@@ -168,30 +189,32 @@ public class GuiXTracerStorage extends GuiContainer {
     @Override protected void drawGuiContainerBackgroundLayer(float partialTicks, int mouseX, int mouseY) {
         GL11.glColor4f(1F, 1F, 1F, 1F);
         drawRect(guiLeft, guiTop, guiLeft + PANEL_WIDTH, guiTop + PANEL_HEIGHT, 0xffc6c6c6);
-        drawRect(guiLeft + 7, guiTop + 7, guiLeft + PANEL_WIDTH - 7, guiTop + 108, 0xffeeeeee);
-        drawRect(guiLeft + 7, guiTop + 108, guiLeft + PANEL_WIDTH - 7, guiTop + PANEL_HEIGHT - 7, 0xff9b9b9b);
+        drawRect(guiLeft + 7, guiTop + 7, guiLeft + PANEL_WIDTH - 7, guiTop + 152, 0xffeeeeee);
+        drawRect(guiLeft + 7, guiTop + 152, guiLeft + PANEL_WIDTH - 7, guiTop + PANEL_HEIGHT - 7, 0xff9b9b9b);
     }
 
     @Override protected void drawGuiContainerForegroundLayer(int mouseX, int mouseY) {
-        fontRendererObj.drawString("Name", 8, 9, 0x202020);
-        fontRendererObj.drawString("Accept terms (comma separated)", 8, 31, 0x202020);
-        fontRendererObj.drawString("Exclude terms (comma separated)", 8, 53, 0x202020);
-        fontRendererObj.drawString("Storage is output-only", 8, 130, 0x202020);
-        fontRendererObj.drawString("Stored item types: " + tile.getSizeInventory(), 8, 140, 0x202020);
-        fontRendererObj.drawString("Page " + (contentPage + 1), 174, 140, 0x202020);
+        fontRendererObj.drawString("Name", 8, 8, 0x202020);
+        fontRendererObj.drawString("Accept tags (use , ; or |)", 8, 40, 0x202020);
+        fontRendererObj.drawString("Exclude tags (use , ; or |)", 8, 72, 0x202020);
+        fontRendererObj.drawString("Storage is output-only", 8, 154, 0x202020);
+        fontRendererObj.drawString("Stored item types: " + totalEntries, 8, 164, 0x202020);
+        fontRendererObj.drawString("Page " + (contentPage + 1) + "/" + totalPages(), 158, 164, 0x202020);
         for (int i = 0; i < contents.size() && i < ContainerContentsMessage.PAGE_SIZE; i++) {
             ContainerContentsMessage.Entry entry = contents.get(i);
             Item item = (Item) Item.itemRegistry.getObject(entry.itemId);
             if (item == null) continue;
-            int x = 10 + (i % 9) * 22;
-            int y = 148 + (i / 9) * 24;
+            int x = 8 + (i % 9) * 22;
+            int y = 174 + (i / 9) * 24;
+            drawRect(x, y, x + 18, y + 18, 0xff373737);
+            drawRect(x + 1, y + 1, x + 17, y + 17, 0xff8b8b8b);
             net.minecraft.item.ItemStack stack = new net.minecraft.item.ItemStack(item, 1, entry.damage);
             RenderHelper.enableGUIStandardItemLighting();
-            renderItem.renderItemAndEffectIntoGUI(fontRendererObj, Minecraft.getMinecraft().getTextureManager(), stack, x, y);
+            renderItem.renderItemAndEffectIntoGUI(fontRendererObj, Minecraft.getMinecraft().getTextureManager(), stack, x + 1, y + 1);
             RenderHelper.disableStandardItemLighting();
-            fontRendererObj.drawString(formatCount(entry.count), x, y + 15, 0x202020);
+            fontRendererObj.drawString(formatCount(entry.count), x + 1, y + 14, 0xFFFFFF);
         }
-        fontRendererObj.drawString("Player inventory", 8, 252, 0x202020);
+        fontRendererObj.drawString("Player inventory", 8, 238, 0x202020);
         name.drawTextBox();
         accepts.drawTextBox();
         excludes.drawTextBox();

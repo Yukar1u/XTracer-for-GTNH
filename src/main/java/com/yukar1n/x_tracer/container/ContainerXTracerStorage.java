@@ -17,10 +17,10 @@ public class ContainerXTracerStorage extends Container {
         // in the vanilla container so client/server slot layouts never drift.
         for (int row = 0; row < 3; row++) {
             for (int col = 0; col < 9; col++) {
-                addSlotToContainer(new Slot(inventory, col + row * 9 + 9, 8 + col * 18, 274 + row * 18));
+                addSlotToContainer(new Slot(inventory, col + row * 9 + 9, 8 + col * 18, 254 + row * 18));
             }
         }
-        for (int col = 0; col < 9; col++) addSlotToContainer(new Slot(inventory, col, 8 + col * 18, 332));
+        for (int col = 0; col < 9; col++) addSlotToContainer(new Slot(inventory, col, 8 + col * 18, 312));
     }
 
     @Override public boolean canInteractWith(EntityPlayer player) { return tile.isUseableByPlayer(player); }
