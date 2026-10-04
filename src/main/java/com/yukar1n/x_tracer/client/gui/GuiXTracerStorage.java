@@ -178,7 +178,7 @@ public class GuiXTracerStorage extends GuiContainer {
         fontRendererObj.drawString("Exclude terms (comma separated)", 8, 53, 0x202020);
         fontRendererObj.drawString("Storage is output-only", 8, 112, 0x202020);
         fontRendererObj.drawString("Stored item types: " + tile.getSizeInventory(), 8, 124, 0x202020);
-        fontRendererObj.drawString("Page " + (contentPage + 1), 174, 124, 0x202020);
+        fontRendererObj.drawString("Page " + (contentPage + 1), 174, 130, 0x202020);
         for (int i = 0; i < contents.size() && i < ContainerContentsMessage.PAGE_SIZE; i++) {
             ContainerContentsMessage.Entry entry = contents.get(i);
             Item item = (Item) Item.itemRegistry.getObject(entry.itemId);
