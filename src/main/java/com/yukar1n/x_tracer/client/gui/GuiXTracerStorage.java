@@ -24,7 +24,7 @@ import java.util.List;
 
 public class GuiXTracerStorage extends GuiContainer {
     private static final int PANEL_WIDTH = 220;
-    private static final int PANEL_HEIGHT = 300;
+    private static final int PANEL_HEIGHT = 360;
     private final TileEntityXTracerContainer tile;
     private GuiTextField name;
     private GuiTextField accepts;
@@ -130,9 +130,9 @@ public class GuiXTracerStorage extends GuiContainer {
     @Override protected void mouseClicked(int mouseX, int mouseY, int mouseButton) {
         int localX = mouseX - guiLeft;
         int localY = mouseY - guiTop;
-        if (localY >= 132 && localY < 176 && localX >= 8 && localX < 206) {
+        if (localY >= 148 && localY < 196 && localX >= 8 && localX < 206) {
             int column = (localX - 8) / 22;
-            int row = (localY - 132) / 22;
+            int row = (localY - 148) / 24;
             int index = contentPage * ContainerContentsMessage.PAGE_SIZE + row * 9 + column;
             if (index < contents.size() + contentPage * ContainerContentsMessage.PAGE_SIZE) {
                 CommonProxy.network.sendToServer(new ContainerExtractMessage(tile.xCoord, tile.yCoord, tile.zCoord, index, 64, contentRevision));
@@ -176,22 +176,22 @@ public class GuiXTracerStorage extends GuiContainer {
         fontRendererObj.drawString("Name", 8, 9, 0x202020);
         fontRendererObj.drawString("Accept terms (comma separated)", 8, 31, 0x202020);
         fontRendererObj.drawString("Exclude terms (comma separated)", 8, 53, 0x202020);
-        fontRendererObj.drawString("Storage is output-only", 8, 112, 0x202020);
-        fontRendererObj.drawString("Stored item types: " + tile.getSizeInventory(), 8, 124, 0x202020);
-        fontRendererObj.drawString("Page " + (contentPage + 1), 174, 130, 0x202020);
+        fontRendererObj.drawString("Storage is output-only", 8, 130, 0x202020);
+        fontRendererObj.drawString("Stored item types: " + tile.getSizeInventory(), 8, 140, 0x202020);
+        fontRendererObj.drawString("Page " + (contentPage + 1), 174, 140, 0x202020);
         for (int i = 0; i < contents.size() && i < ContainerContentsMessage.PAGE_SIZE; i++) {
             ContainerContentsMessage.Entry entry = contents.get(i);
             Item item = (Item) Item.itemRegistry.getObject(entry.itemId);
             if (item == null) continue;
             int x = 10 + (i % 9) * 22;
-            int y = 132 + (i / 9) * 22;
+            int y = 148 + (i / 9) * 24;
             net.minecraft.item.ItemStack stack = new net.minecraft.item.ItemStack(item, 1, entry.damage);
             RenderHelper.enableGUIStandardItemLighting();
             renderItem.renderItemAndEffectIntoGUI(fontRendererObj, Minecraft.getMinecraft().getTextureManager(), stack, x, y);
             RenderHelper.disableStandardItemLighting();
             fontRendererObj.drawString(formatCount(entry.count), x, y + 15, 0x202020);
         }
-        fontRendererObj.drawString("Player inventory", 8, 130, 0x202020);
+        fontRendererObj.drawString("Player inventory", 8, 252, 0x202020);
         name.drawTextBox();
         accepts.drawTextBox();
         excludes.drawTextBox();

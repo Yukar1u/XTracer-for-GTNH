@@ -112,7 +112,7 @@ public class GuiXTracerTerminal extends GuiScreen {
         buttonList.add(new GuiButton(5, left, 255, 105, 20, "Drops: " + drop));
         buttonList.add(new GuiButton(10, left + 110, 255, 110, 20, "Remote input: " + remoteInput));
         buttonList.add(new GuiButton(11, left, 305, 105, 20, "Bind looked-at"));
-        buttonList.add(new GuiButton(12, left + 110, 305, 110, 20, "Unbind selected"));
+        buttonList.add(new GuiButton(12, left + 110, 305, 110, 20, "Unbind looked-at"));
         buttonList.add(new GuiButton(8, left, 280, 105, 20, "Ray select"));
         buttonList.add(new GuiButton(6, left + 110, 280, 110, 20, "Trace"));
     }
@@ -198,10 +198,9 @@ public class GuiXTracerTerminal extends GuiScreen {
                 requestStateRefresh();
             }
         } else if (button.id == 12) {
-            List<ContainerReference> bindings = TerminalProfile.bindings(Minecraft.getMinecraft().thePlayer.getHeldItem());
-            if (selectedContainer >= 0 && selectedContainer < bindings.size()) {
-                ContainerReference ref = bindings.get(selectedContainer);
-                CommonProxy.network.sendToServer(new com.yukar1n.x_tracer.network.TerminalBindingMessage(false, ref.x, ref.y, ref.z));
+            net.minecraft.util.MovingObjectPosition hit = Minecraft.getMinecraft().objectMouseOver;
+            if (hit != null && hit.typeOfHit == net.minecraft.util.MovingObjectPosition.MovingObjectType.BLOCK) {
+                CommonProxy.network.sendToServer(new com.yukar1n.x_tracer.network.TerminalBindingMessage(false, hit.blockX, hit.blockY, hit.blockZ));
                 requestStateRefresh();
             }
         } else if (button.id == 7) {
