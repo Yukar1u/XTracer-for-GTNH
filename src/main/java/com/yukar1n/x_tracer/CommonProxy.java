@@ -1,10 +1,16 @@
 package com.yukar1n.x_tracer;
 
 import com.yukar1n.x_tracer.gui.XTracerGuiHandler;
+import com.yukar1n.x_tracer.block.BlockXTracerContainer;
 import com.yukar1n.x_tracer.item.ItemXTracerTerminal;
 import com.yukar1n.x_tracer.network.FoundBlocksMessage;
+import com.yukar1n.x_tracer.network.KeyPressMessage;
 import com.yukar1n.x_tracer.network.TerminalRequestMessage;
 import com.yukar1n.x_tracer.network.TerminalStateMessage;
+import com.yukar1n.x_tracer.network.ContainerEditMessage;
+import com.yukar1n.x_tracer.network.ContainerStateMessage;
+import com.yukar1n.x_tracer.network.TerminalBindingMessage;
+import com.yukar1n.x_tracer.network.TerminalContainersMessage;
 import cpw.mods.fml.common.event.FMLInitializationEvent;
 import cpw.mods.fml.common.event.FMLPostInitializationEvent;
 import cpw.mods.fml.common.event.FMLPreInitializationEvent;
@@ -17,7 +23,6 @@ import net.minecraft.server.MinecraftServer;
 
 import java.util.UUID;
 import cpw.mods.fml.common.network.simpleimpl.SimpleNetworkWrapper;
-import com.yukar1n.x_tracer.network.KeyPressMessage;
 import cpw.mods.fml.relauncher.Side;
 
 public class CommonProxy {
@@ -64,8 +69,29 @@ public class CommonProxy {
             TerminalStateMessage.class,
             3,
             Side.CLIENT);
+        network.registerMessage(
+            ContainerEditMessage.Handler.class,
+            ContainerEditMessage.class,
+            4,
+            Side.SERVER);
+        network.registerMessage(
+            ContainerStateMessage.Handler.class,
+            ContainerStateMessage.class,
+            5,
+            Side.CLIENT);
+        network.registerMessage(
+            TerminalBindingMessage.Handler.class,
+            TerminalBindingMessage.class,
+            6,
+            Side.SERVER);
+        network.registerMessage(
+            TerminalContainersMessage.Handler.class,
+            TerminalContainersMessage.class,
+            7,
+            Side.CLIENT);
 
         ItemXTracerTerminal.register();
+        BlockXTracerContainer.register();
         NetworkRegistry.INSTANCE.registerGuiHandler(MyMod.INSTANCE, new XTracerGuiHandler());
         Config.synchronizeConfiguration(event.getSuggestedConfigurationFile());
     }

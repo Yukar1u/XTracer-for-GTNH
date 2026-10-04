@@ -1,0 +1,62 @@
+package com.yukar1n.x_tracer.block;
+
+import com.yukar1n.x_tracer.MyMod;
+import com.yukar1n.x_tracer.tileentity.TileEntityXTracerContainer;
+import cpw.mods.fml.common.registry.GameRegistry;
+import net.minecraft.block.BlockContainer;
+import net.minecraft.block.material.Material;
+import net.minecraft.entity.EntityLivingBase;
+import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.item.ItemStack;
+import net.minecraft.tileentity.TileEntity;
+import net.minecraft.util.ChatComponentText;
+import net.minecraft.world.World;
+
+public class BlockXTracerContainer extends BlockContainer {
+    public static final BlockXTracerContainer INSTANCE = new BlockXTracerContainer();
+
+    private BlockXTracerContainer() {
+        super(Material.iron);
+        setBlockName("xtracer_container");
+        setBlockTextureName(MyMod.MODID + ":xtracer_container");
+        setHardness(3.0F);
+        setResistance(10.0F);
+    }
+
+    public static void register() {
+        GameRegistry.registerBlock(INSTANCE, "xtracer_container");
+        GameRegistry.registerTileEntity(TileEntityXTracerContainer.class, "x_tracer_container");
+    }
+
+    @Override
+    public TileEntity createNewTileEntity(World world, int meta) {
+        return new TileEntityXTracerContainer();
+    }
+
+    @Override
+    public boolean onBlockActivated(World world, int x, int y, int z, EntityPlayer player,
+                                    int side, float hitX, float hitY, float hitZ) {
+        if (!world.isRemote) player.openGui(MyMod.INSTANCE, MyMod.CONTAINER_GUI_ID, world, x, y, z);
+        return true;
+    }
+
+    @Override
+    public void onBlockPlacedBy(World world, int x, int y, int z, EntityLivingBase placer, ItemStack stack) {
+        super.onBlockPlacedBy(world, x, y, z, placer, stack);
+        TileEntity tile = world.getTileEntity(x, y, z);
+        if (tile instanceof TileEntityXTracerContainer && placer instanceof EntityPlayer) {
+            ((TileEntityXTracerContainer) tile).setOwnerUuid(((EntityPlayer) placer).getUniqueID());
+        }
+    }
+
+    @Override
+    public boolean removedByPlayer(World world, EntityPlayer player, int x, int y, int z, boolean willHarvest) {
+        TileEntity tile = world.getTileEntity(x, y, z);
+        if (tile instanceof TileEntityXTracerContainer
+            && ((TileEntityXTracerContainer) tile).getSizeInventory() > 0) {
+            player.addChatMessage(new ChatComponentText("§cXTracer container must be empty before removal."));
+            return false;
+        }
+        return super.removedByPlayer(world, player, x, y, z, willHarvest);
+    }
+}

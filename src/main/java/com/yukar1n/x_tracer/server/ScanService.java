@@ -30,7 +30,12 @@ public final class ScanService {
 
     public static void enqueueOnServerThread(EntityPlayerMP player) {
         java.util.UUID playerId = player.getUniqueID();
-        scan(player, ScanRequest.from(playerId, Config.getPlayerConfig(playerId)));
+        net.minecraft.item.ItemStack terminal = player.getHeldItem();
+        if (terminal == null || terminal.getItem() != com.yukar1n.x_tracer.item.ItemXTracerTerminal.INSTANCE) {
+            player.addChatMessage(new ChatComponentText("§cXTracer: hold the terminal first."));
+            return;
+        }
+        scan(player, ScanRequest.from(playerId, Config.getPlayerConfig(playerId), terminal));
     }
 
     public static void scan(EntityPlayerMP player, ScanRequest request) {
@@ -51,7 +56,7 @@ public final class ScanService {
         }
         player.addChatMessage(new ChatComponentText("§b§k:" + "§bTrace Out: " + found.size() + " §bObject§b§k:"));
         CommonProxy.network.sendTo(new FoundBlocksMessage(found), player);
-        if (request.drop) DropService.remove(player, found);
+        if (request.drop) DropService.remove(player, found, request);
     }
 
     private static boolean matches(World world, int x, int y, int z, ScanRequest request) {

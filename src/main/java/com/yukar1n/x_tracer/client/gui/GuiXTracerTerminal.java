@@ -23,6 +23,8 @@ import java.util.Set;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import com.yukar1n.x_tracer.SelectorLogic;
+import com.yukar1n.x_tracer.storage.ContainerReference;
+import com.yukar1n.x_tracer.storage.TerminalProfile;
 
 public class GuiXTracerTerminal extends GuiScreen {
     private static final int COLUMNS = 9;
@@ -31,12 +33,14 @@ public class GuiXTracerTerminal extends GuiScreen {
     private static final int CELL_SIZE = 24;
     private static final int BLOCK_PAGE = 0;
     private static final int ORE_PAGE = 1;
+    private static final int CONTAINER_PAGE = 2;
 
     private GuiTextField search;
     private GuiTextField radius;
     private int pageType;
     private int page;
     private boolean drop;
+    private boolean remoteInput;
     private String selectedBlock;
     private String pendingBlock;
     private final Set<String> selectedOres = new HashSet<>();
@@ -48,6 +52,7 @@ public class GuiXTracerTerminal extends GuiScreen {
     private int cachedPageType = -1;
     private String cachedExpansionKey = "";
     private final RenderItem renderItem = new RenderItem();
+    private List<String> containerSummaries = new ArrayList<>();
 
     @Override
     public boolean doesGuiPauseGame() {
@@ -61,6 +66,7 @@ public class GuiXTracerTerminal extends GuiScreen {
         ClientConfig config = Config.getPlayerConfig(Minecraft.getMinecraft().thePlayer.getUniqueID());
         pageType = "ore".equals(config.curMatchMode) ? ORE_PAGE : BLOCK_PAGE;
         drop = "True".equals(config.getDrop);
+        remoteInput = false;
         selectedBlock = config.targetList.isEmpty() ? "" : config.targetList.get(0);
         selectedOres.addAll(config.targetOreNameList);
         int left = width / 2 - (COLUMNS * CELL_SIZE) / 2;
@@ -72,8 +78,13 @@ public class GuiXTracerTerminal extends GuiScreen {
     }
 
     public void applyServerState(int serverRadius, boolean serverDrop, String mode, String blockTarget, String oreTargets) {
+        applyServerState(serverRadius, serverDrop, mode, blockTarget, oreTargets, false);
+    }
+
+    public void applyServerState(int serverRadius, boolean serverDrop, String mode, String blockTarget, String oreTargets, boolean serverRemoteInput) {
         radius.setText(String.valueOf(serverRadius));
         drop = serverDrop;
+        remoteInput = serverRemoteInput;
         selectedBlock = blockTarget == null ? "" : blockTarget;
         selectedOres.clear();
         if (oreTargets != null && !oreTargets.isEmpty()) {
@@ -90,14 +101,16 @@ public class GuiXTracerTerminal extends GuiScreen {
     private void rebuildButtons() {
         buttonList.clear();
         int left = gridLeft();
-        buttonList.add(new GuiButton(0, left, 10, 105, 20, "Block"));
-        buttonList.add(new GuiButton(1, left + 110, 10, 110, 20, "Ore"));
+        buttonList.add(new GuiButton(0, left, 10, 70, 20, "Block"));
+        buttonList.add(new GuiButton(1, left + 75, 10, 70, 20, "Ore"));
+        buttonList.add(new GuiButton(9, left + 150, 10, 70, 20, "Containers"));
         buttonList.add(new GuiButton(2, left, 205, 55, 20, "Prev"));
         buttonList.add(new GuiButton(3, left + 60, 205, 55, 20, "Next"));
         buttonList.add(new GuiButton(4, left + 120, 205, 100, 20, "Save target"));
         buttonList.add(new GuiButton(7, left + 110, 230, 110, 20, "Save radius"));
         buttonList.add(new GuiButton(5, left, 255, 105, 20, "Drops: " + drop));
-        buttonList.add(new GuiButton(6, left + 110, 255, 110, 20, "Trace"));
+        buttonList.add(new GuiButton(10, left + 110, 255, 110, 20, "Remote input: " + remoteInput));
+        buttonList.add(new GuiButton(6, left + 110, 280, 110, 20, "Trace"));
         buttonList.add(new GuiButton(8, left, 280, 220, 20, "Ray select"));
     }
 
@@ -148,8 +161,8 @@ public class GuiXTracerTerminal extends GuiScreen {
     @Override
     protected void actionPerformed(GuiButton button) {
         int left = gridLeft();
-        if (button.id == 0 || button.id == 1) {
-            pageType = button.id;
+        if (button.id == 0 || button.id == 1 || button.id == 9) {
+            pageType = button.id == 9 ? CONTAINER_PAGE : button.id;
             page = 0;
             rebuildButtons();
         } else if (button.id == 2) {
@@ -167,6 +180,10 @@ public class GuiXTracerTerminal extends GuiScreen {
             drop = !drop;
             button.displayString = "Drops: " + drop;
             CommonProxy.network.sendToServer(new TerminalRequestMessage(TerminalRequestMessage.SET_DROP, "", 0, drop));
+        } else if (button.id == 10) {
+            remoteInput = !remoteInput;
+            button.displayString = "Remote input: " + remoteInput;
+            CommonProxy.network.sendToServer(new TerminalRequestMessage(TerminalRequestMessage.SET_REMOTE_INPUT, "", 0, remoteInput));
         } else if (button.id == 6) {
             CommonProxy.network.sendToServer(new TerminalRequestMessage(TerminalRequestMessage.SCAN, "", 0, drop));
         } else if (button.id == 8) {
@@ -180,6 +197,7 @@ public class GuiXTracerTerminal extends GuiScreen {
 
     @Override
     protected void keyTyped(char typedChar, int keyCode) {
+        if (pageType == CONTAINER_PAGE) { if (keyCode == Keyboard.KEY_ESCAPE) super.keyTyped(typedChar, keyCode); return; }
         String before = search.getText();
         search.textboxKeyTyped(typedChar, keyCode);
         radius.textboxKeyTyped(typedChar, keyCode);
@@ -190,7 +208,7 @@ public class GuiXTracerTerminal extends GuiScreen {
     @Override
     protected void mouseClicked(int mouseX, int mouseY, int mouseButton) {
         super.mouseClicked(mouseX, mouseY, mouseButton);
-        search.mouseClicked(mouseX, mouseY, mouseButton);
+        if (pageType != CONTAINER_PAGE) search.mouseClicked(mouseX, mouseY, mouseButton);
         radius.mouseClicked(mouseX, mouseY, mouseButton);
         int left = gridLeft();
         int top = 60;
@@ -243,9 +261,10 @@ public class GuiXTracerTerminal extends GuiScreen {
         drawDefaultBackground();
         int left = gridLeft();
         drawCenteredString(fontRendererObj, "XTracer Terminal", width / 2, 0, 0xFFFFFF);
-        drawString(fontRendererObj, pageType == BLOCK_PAGE ? "Blocks" : "Ore Dictionary (ore* only, multi-select)", left, 58, 0xFFFFFF);
-        search.drawTextBox();
-        drawCatalog(left, mouseX, mouseY);
+        drawString(fontRendererObj, pageType == BLOCK_PAGE ? "Blocks" : pageType == ORE_PAGE ? "Ore Dictionary (ore* only, multi-select)" : "Bound containers (rules are read-only)", left, 58, 0xFFFFFF);
+        if (pageType != CONTAINER_PAGE) search.drawTextBox();
+        if (pageType == CONTAINER_PAGE) drawContainers(left);
+        else drawCatalog(left, mouseX, mouseY);
         drawString(fontRendererObj, "Radius", left + 112, 235, 0xFFFFFF);
         radius.drawTextBox();
         super.drawScreen(mouseX, mouseY, partialTicks);
@@ -306,6 +325,30 @@ public class GuiXTracerTerminal extends GuiScreen {
         } catch (Throwable ignored) {
             drawRect(x + 5, y + 5, x + 19, y + 19, 0xff555555);
         }
+    }
+
+    public void applyContainerSummaries(List<String> summaries) {
+        containerSummaries = summaries == null ? new ArrayList<String>() : new ArrayList<>(summaries);
+    }
+
+    private void drawContainers(int left) {
+        List<ContainerReference> bindings = new ArrayList<>();
+        if (Minecraft.getMinecraft().thePlayer != null && Minecraft.getMinecraft().thePlayer.getHeldItem() != null) {
+            bindings = TerminalProfile.bindings(Minecraft.getMinecraft().thePlayer.getHeldItem());
+        }
+        if (bindings.isEmpty()) {
+            drawString(fontRendererObj, "No bound containers", left, 82, 0xAAAAAA);
+            return;
+        }
+        int y = 82;
+        for (int i = 0; i < bindings.size() && i < 8; i++) {
+            ContainerReference ref = bindings.get(i);
+            drawString(fontRendererObj, (i + 1) + ". " + ref.dimension + "  " + ref.x + "," + ref.y + "," + ref.z, left, y, 0xFFFFFF);
+            String summary = i < containerSummaries.size() ? containerSummaries.get(i) : "Rules are configured on the container";
+            drawString(fontRendererObj, summary.length() > 52 ? summary.substring(0, 52) : summary, left + 8, y + 12, 0xAAAAAA);
+            y += 28;
+        }
+        drawString(fontRendererObj, "Remote input: " + (remoteInput ? "enabled" : "disabled"), left, 200, remoteInput ? 0x55FF55 : 0xAAAAAA);
     }
 
     private boolean isHovered(int x, int y, int mouseX, int mouseY) {

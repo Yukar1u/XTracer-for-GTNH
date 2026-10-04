@@ -1,1 +1,3 @@
 item.xtracer_terminal.name=XTracer手持终端
+block.xtracer_container.name=XTracer容器
+container.x_tracer=XTracer容器

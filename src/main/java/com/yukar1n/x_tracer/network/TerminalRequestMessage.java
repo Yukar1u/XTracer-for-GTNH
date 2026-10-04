@@ -14,6 +14,7 @@ import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.ChatComponentText;
 import com.yukar1n.x_tracer.OreNames;
+import com.yukar1n.x_tracer.storage.TerminalProfile;
 import net.minecraftforge.oredict.OreDictionary;
 
 import java.nio.charset.Charset;
@@ -32,6 +33,7 @@ public class TerminalRequestMessage implements IMessage {
     public static final byte CURRENT = 6;
     public static final byte SET_ORE_TARGETS = 7;
     public static final byte REQUEST_STATE = 8;
+    public static final byte SET_REMOTE_INPUT = 9;
     private static final int MAX_TARGETS = 64;
     private static final int MAX_TARGET_LENGTH = 128;
 
@@ -108,6 +110,12 @@ public class TerminalRequestMessage implements IMessage {
                     }
                     if (action == REQUEST_STATE) {
                         sendState(player);
+                        sendContainers(player, held);
+                        return;
+                    }
+                    if (action == SET_REMOTE_INPUT) {
+                        TerminalProfile.setRemoteInput(held, drop);
+                        player.addChatMessage(new ChatComponentText("§aXTracer terminal: remote input " + (drop ? "enabled." : "disabled.")));
                         return;
                     }
                     TerminalRequestMessage request = new TerminalRequestMessage(action, targets, radius, drop);
@@ -120,10 +128,32 @@ public class TerminalRequestMessage implements IMessage {
 
         private void sendState(EntityPlayerMP player) {
             com.yukar1n.x_tracer.ClientConfig config = Config.getPlayerConfig(player.getUniqueID());
+            ItemStack held = player.getHeldItem();
+            if (held != null && held.getItem() == ItemXTracerTerminal.INSTANCE) TerminalProfile.initializeFromConfig(held, config);
             String block = config.targetList.isEmpty() ? "" : config.targetList.get(0);
             String ores = join(config.targetOreNameList);
-            CommonProxy.network.sendTo(new TerminalStateMessage(config.radius, "True".equals(config.getDrop),
-                config.curMatchMode, block, ores), player);
+            CommonProxy.network.sendTo(new TerminalStateMessage(TerminalProfile.radius(held, config), TerminalProfile.drop(held, config),
+                config.curMatchMode, block, ores, TerminalProfile.remoteInput(held)), player);
+        }
+
+        private void sendContainers(EntityPlayerMP player, ItemStack held) {
+            List<String> summaries = new ArrayList<>();
+            for (com.yukar1n.x_tracer.storage.ContainerReference reference : TerminalProfile.bindings(held)) {
+                net.minecraft.world.WorldServer world = net.minecraft.server.MinecraftServer.getServer().worldServerForDimension(reference.dimension);
+                if (world == null || !world.getChunkProvider().chunkExists(reference.x >> 4, reference.z >> 4)) {
+                    summaries.add("Offline container @ " + reference.x + "," + reference.y + "," + reference.z);
+                    continue;
+                }
+                net.minecraft.tileentity.TileEntity tile = world.getTileEntity(reference.x, reference.y, reference.z);
+                if (!(tile instanceof com.yukar1n.x_tracer.tileentity.TileEntityXTracerContainer)) {
+                    summaries.add("Missing container @ " + reference.x + "," + reference.y + "," + reference.z);
+                    continue;
+                }
+                com.yukar1n.x_tracer.tileentity.TileEntityXTracerContainer container = (com.yukar1n.x_tracer.tileentity.TileEntityXTracerContainer) tile;
+                summaries.add((container.getCustomName().isEmpty() ? "XTracer Container" : container.getCustomName())
+                    + " | accept: " + join(container.getAccepts()) + " | exclude: " + join(container.getExcludes()));
+            }
+            CommonProxy.network.sendTo(new TerminalContainersMessage(summaries), player);
         }
 
         private String join(List<String> values) {
@@ -192,8 +222,10 @@ public class TerminalRequestMessage implements IMessage {
             } else if (message.action == SET_RADIUS) {
                 if (message.radius < 1 || message.radius > Config.getPlayerConfig(player.getUniqueID()).maxRadius) return;
                 Config.getPlayerConfig(player.getUniqueID()).radius = message.radius;
+                TerminalProfile.setRadius(player.getHeldItem(), message.radius);
             } else if (message.action == SET_DROP) {
                 Config.getPlayerConfig(player.getUniqueID()).getDrop = message.drop ? "True" : "False";
+                TerminalProfile.setDrop(player.getHeldItem(), message.drop);
             } else if (message.action == RAY) {
                 final java.util.UUID playerId = player.getUniqueID();
                 com.yukar1n.x_tracer.CommonProxy.serverTaskQueue.enqueue(new Runnable() {

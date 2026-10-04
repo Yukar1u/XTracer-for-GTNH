@@ -12,6 +12,8 @@ import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import cpw.mods.fml.common.eventhandler.SubscribeEvent;
 import org.lwjgl.input.Keyboard;
 import com.yukar1n.x_tracer.network.KeyPressMessage;
+import com.yukar1n.x_tracer.block.BlockXTracerContainer;
+import com.yukar1n.x_tracer.network.TerminalBindingMessage;
 import cpw.mods.fml.common.event.FMLInitializationEvent;
 import cpw.mods.fml.common.event.FMLPreInitializationEvent;
 
@@ -40,8 +42,14 @@ public class ClientProxy extends CommonProxy {
             return;
         }
         if (event.action == PlayerInteractEvent.Action.RIGHT_CLICK_BLOCK) {
-            event.setCanceled(true);
-            openTerminalGui();
+            if (event.entityPlayer.isSneaking()
+                && event.entityPlayer.worldObj.getBlock(event.x, event.y, event.z) == BlockXTracerContainer.INSTANCE) {
+                event.setCanceled(true);
+                network.sendToServer(new TerminalBindingMessage(true, event.x, event.y, event.z));
+            } else {
+                event.setCanceled(true);
+                openTerminalGui();
+            }
         }
     }
 

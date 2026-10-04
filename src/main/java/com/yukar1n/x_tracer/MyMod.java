@@ -12,11 +12,12 @@ import cpw.mods.fml.common.event.FMLPostInitializationEvent;
 import cpw.mods.fml.common.event.FMLPreInitializationEvent;
 import cpw.mods.fml.common.event.FMLServerStartingEvent;
 
-@Mod(modid = MyMod.MODID, version = "1.3.1", name = "Xtracer", acceptedMinecraftVersions = "[1.7.10]")
+@Mod(modid = MyMod.MODID, version = "1.4.0", name = "Xtracer", acceptedMinecraftVersions = "[1.7.10]")
 public class MyMod {
 
     public static final String MODID = "x_tracer";
     public static final int TERMINAL_GUI_ID = 0;
+    public static final int CONTAINER_GUI_ID = 1;
     public static MyMod INSTANCE;
     public static final Logger LOG = LogManager.getLogger(MODID);
 

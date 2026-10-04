@@ -15,15 +15,21 @@ public class TerminalStateMessage implements IMessage {
     private String mode = "";
     private String blockTarget = "";
     private String oreTargets = "";
+    private boolean remoteInput;
 
     public TerminalStateMessage() {}
 
     public TerminalStateMessage(int radius, boolean drop, String mode, String blockTarget, String oreTargets) {
+        this(radius, drop, mode, blockTarget, oreTargets, false);
+    }
+
+    public TerminalStateMessage(int radius, boolean drop, String mode, String blockTarget, String oreTargets, boolean remoteInput) {
         this.radius = radius;
         this.drop = drop;
         this.mode = mode == null ? "" : mode;
         this.blockTarget = blockTarget == null ? "" : blockTarget;
         this.oreTargets = oreTargets == null ? "" : oreTargets;
+        this.remoteInput = remoteInput;
     }
 
     @Override
@@ -33,6 +39,7 @@ public class TerminalStateMessage implements IMessage {
         mode = readString(buf);
         blockTarget = readString(buf);
         oreTargets = readString(buf);
+        remoteInput = buf.readBoolean();
     }
 
     @Override
@@ -42,6 +49,7 @@ public class TerminalStateMessage implements IMessage {
         writeString(buf, mode);
         writeString(buf, blockTarget);
         writeString(buf, oreTargets);
+        buf.writeBoolean(remoteInput);
     }
 
     private static String readString(ByteBuf buf) {
@@ -65,7 +73,7 @@ public class TerminalStateMessage implements IMessage {
                 @Override public void run() {
                     if (Minecraft.getMinecraft().currentScreen instanceof com.yukar1n.x_tracer.client.gui.GuiXTracerTerminal) {
                         ((com.yukar1n.x_tracer.client.gui.GuiXTracerTerminal) Minecraft.getMinecraft().currentScreen)
-                            .applyServerState(message.radius, message.drop, message.mode, message.blockTarget, message.oreTargets);
+                            .applyServerState(message.radius, message.drop, message.mode, message.blockTarget, message.oreTargets, message.remoteInput);
                     }
                 }
             });
@@ -78,4 +86,5 @@ public class TerminalStateMessage implements IMessage {
     public String getMode() { return mode; }
     public String getBlockTarget() { return blockTarget; }
     public String getOreTargets() { return oreTargets; }
+    public boolean isRemoteInput() { return remoteInput; }
 }

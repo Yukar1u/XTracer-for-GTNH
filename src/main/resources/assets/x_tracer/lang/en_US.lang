@@ -1,1 +1,3 @@
 item.xtracer_terminal.name=XTracer Terminal
+block.xtracer_container.name=XTracer Container
+container.x_tracer=XTracer Container
