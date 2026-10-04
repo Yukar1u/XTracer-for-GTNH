@@ -70,6 +70,18 @@ public class TileEntityXTracerContainer extends TileEntity implements ISidedInve
         return removed;
     }
 
+    public LongItemStorage.Entry entryAt(int index) {
+        List<LongItemStorage.Entry> entries = storage.entries();
+        return index < 0 || index >= entries.size() ? null : entries.get(index);
+    }
+
+    public ItemStack withdrawSlot(int index, int amount) {
+        LongItemStorage.Entry entry = entryAt(index);
+        if (entry == null) return null;
+        long removed = withdraw(entry.key(), Math.min(64L, Math.max(1L, amount)));
+        return removed <= 0L ? null : entry.key().toStack((int) removed);
+    }
+
     public long storedAmount(ItemKey key) { return storage.get(key); }
 
     private static String sanitize(String value, int max) {

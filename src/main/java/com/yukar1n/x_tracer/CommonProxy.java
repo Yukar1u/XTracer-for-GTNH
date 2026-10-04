@@ -11,6 +11,9 @@ import com.yukar1n.x_tracer.network.ContainerEditMessage;
 import com.yukar1n.x_tracer.network.ContainerStateMessage;
 import com.yukar1n.x_tracer.network.TerminalBindingMessage;
 import com.yukar1n.x_tracer.network.TerminalContainersMessage;
+import com.yukar1n.x_tracer.network.ContainerContentsMessage;
+import com.yukar1n.x_tracer.network.ContainerContentsRequestMessage;
+import com.yukar1n.x_tracer.network.ContainerExtractMessage;
 import cpw.mods.fml.common.event.FMLInitializationEvent;
 import cpw.mods.fml.common.event.FMLPostInitializationEvent;
 import cpw.mods.fml.common.event.FMLPreInitializationEvent;
@@ -89,6 +92,9 @@ public class CommonProxy {
             TerminalContainersMessage.class,
             7,
             Side.CLIENT);
+        network.registerMessage(ContainerContentsRequestMessage.Handler.class, ContainerContentsRequestMessage.class, 8, Side.SERVER);
+        network.registerMessage(ContainerContentsMessage.Handler.class, ContainerContentsMessage.class, 9, Side.CLIENT);
+        network.registerMessage(ContainerExtractMessage.Handler.class, ContainerExtractMessage.class, 10, Side.SERVER);
 
         ItemXTracerTerminal.register();
         BlockXTracerContainer.register();

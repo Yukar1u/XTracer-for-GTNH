@@ -8,26 +8,26 @@ import net.minecraft.inventory.Slot;
 import net.minecraft.item.ItemStack;
 
 public class ContainerXTracerStorage extends Container {
+    public static final int PLAYER_INVENTORY_START = 0;
     public final TileEntityXTracerContainer tile;
 
     public ContainerXTracerStorage(InventoryPlayer inventory, TileEntityXTracerContainer tile) {
         this.tile = tile;
-        int size = Math.min(tile.getSizeInventory(), 54);
-        for (int i = 0; i < size; i++) addSlotToContainer(new Slot(tile, i, 8 + (i % 9) * 18, 18 + (i / 9) * 18));
-        int top = 18 + ((size + 8) / 9) * 18 + 14;
+        // The storage is virtual and read-only. Keep only the player's real inventory
+        // in the vanilla container so client/server slot layouts never drift.
         for (int row = 0; row < 3; row++) {
             for (int col = 0; col < 9; col++) {
-                addSlotToContainer(new Slot(inventory, col + row * 9 + 9, 8 + col * 18, top + row * 18));
+                addSlotToContainer(new Slot(inventory, col + row * 9 + 9, 8 + col * 18, 196 + row * 18));
             }
         }
-        for (int col = 0; col < 9; col++) addSlotToContainer(new Slot(inventory, col, 8 + col * 18, top + 58));
+        for (int col = 0; col < 9; col++) addSlotToContainer(new Slot(inventory, col, 8 + col * 18, 254));
     }
 
     @Override public boolean canInteractWith(EntityPlayer player) { return tile.isUseableByPlayer(player); }
 
     @Override public ItemStack transferStackInSlot(EntityPlayer player, int index) {
-        if (index >= 0 && index < tile.getSizeInventory()) return null;
-        return super.transferStackInSlot(player, index);
+        // There is no destination slot: this container intentionally cannot accept input.
+        return null;
     }
 
     @Override public void onContainerClosed(EntityPlayer player) {

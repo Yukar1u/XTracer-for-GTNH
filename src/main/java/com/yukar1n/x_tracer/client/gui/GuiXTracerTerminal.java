@@ -53,6 +53,7 @@ public class GuiXTracerTerminal extends GuiScreen {
     private String cachedExpansionKey = "";
     private final RenderItem renderItem = new RenderItem();
     private List<String> containerSummaries = new ArrayList<>();
+    private int selectedContainer = 0;
 
     @Override
     public boolean doesGuiPauseGame() {
@@ -110,8 +111,10 @@ public class GuiXTracerTerminal extends GuiScreen {
         buttonList.add(new GuiButton(7, left + 110, 230, 110, 20, "Save radius"));
         buttonList.add(new GuiButton(5, left, 255, 105, 20, "Drops: " + drop));
         buttonList.add(new GuiButton(10, left + 110, 255, 110, 20, "Remote input: " + remoteInput));
+        buttonList.add(new GuiButton(11, left, 305, 105, 20, "Bind looked-at"));
+        buttonList.add(new GuiButton(12, left + 110, 305, 110, 20, "Unbind selected"));
+        buttonList.add(new GuiButton(8, left, 280, 105, 20, "Ray select"));
         buttonList.add(new GuiButton(6, left + 110, 280, 110, 20, "Trace"));
-        buttonList.add(new GuiButton(8, left, 280, 220, 20, "Ray select"));
     }
 
     private void refreshSearchCache() {
@@ -188,6 +191,19 @@ public class GuiXTracerTerminal extends GuiScreen {
             CommonProxy.network.sendToServer(new TerminalRequestMessage(TerminalRequestMessage.SCAN, "", 0, drop));
         } else if (button.id == 8) {
             CommonProxy.network.sendToServer(new TerminalRequestMessage(TerminalRequestMessage.RAY, "", 0, drop));
+        } else if (button.id == 11) {
+            net.minecraft.util.MovingObjectPosition hit = Minecraft.getMinecraft().objectMouseOver;
+            if (hit != null && hit.typeOfHit == net.minecraft.util.MovingObjectPosition.MovingObjectType.BLOCK) {
+                CommonProxy.network.sendToServer(new com.yukar1n.x_tracer.network.TerminalBindingMessage(true, hit.blockX, hit.blockY, hit.blockZ));
+                requestStateRefresh();
+            }
+        } else if (button.id == 12) {
+            List<ContainerReference> bindings = TerminalProfile.bindings(Minecraft.getMinecraft().thePlayer.getHeldItem());
+            if (selectedContainer >= 0 && selectedContainer < bindings.size()) {
+                ContainerReference ref = bindings.get(selectedContainer);
+                CommonProxy.network.sendToServer(new com.yukar1n.x_tracer.network.TerminalBindingMessage(false, ref.x, ref.y, ref.z));
+                requestStateRefresh();
+            }
         } else if (button.id == 7) {
             try {
                 CommonProxy.network.sendToServer(new TerminalRequestMessage(TerminalRequestMessage.SET_RADIUS, "", Integer.parseInt(radius.getText()), drop));
@@ -214,6 +230,12 @@ public class GuiXTracerTerminal extends GuiScreen {
         int top = 60;
         if (mouseX < left || mouseX >= left + COLUMNS * CELL_SIZE || mouseY < top
             || mouseY >= top + ROWS * CELL_SIZE) return;
+        if (pageType == CONTAINER_PAGE) {
+            List<ContainerReference> bindings = TerminalProfile.bindings(Minecraft.getMinecraft().thePlayer.getHeldItem());
+            int row = (mouseY - top) / 28;
+            if (row >= 0 && row < bindings.size()) selectedContainer = row;
+            return;
+        }
         int column = (mouseX - left) / CELL_SIZE;
         int row = (mouseY - top) / CELL_SIZE;
         int index = page * PAGE_SIZE + row * COLUMNS + column;
@@ -327,6 +349,10 @@ public class GuiXTracerTerminal extends GuiScreen {
         }
     }
 
+    private void requestStateRefresh() {
+        CommonProxy.network.sendToServer(new TerminalRequestMessage(TerminalRequestMessage.REQUEST_STATE, "", 0, drop));
+    }
+
     public void applyContainerSummaries(List<String> summaries) {
         containerSummaries = summaries == null ? new ArrayList<String>() : new ArrayList<>(summaries);
     }
@@ -343,6 +369,7 @@ public class GuiXTracerTerminal extends GuiScreen {
         int y = 82;
         for (int i = 0; i < bindings.size() && i < 8; i++) {
             ContainerReference ref = bindings.get(i);
+            if (i == selectedContainer) drawRect(left - 2, y - 2, left + 220, y + 22, 0x5533aa66);
             drawString(fontRendererObj, (i + 1) + ". " + ref.dimension + "  " + ref.x + "," + ref.y + "," + ref.z, left, y, 0xFFFFFF);
             String summary = i < containerSummaries.size() ? containerSummaries.get(i) : "Rules are configured on the container";
             drawString(fontRendererObj, summary.length() > 52 ? summary.substring(0, 52) : summary, left + 8, y + 12, 0xAAAAAA);

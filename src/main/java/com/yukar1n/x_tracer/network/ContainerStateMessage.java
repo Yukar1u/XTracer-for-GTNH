@@ -37,7 +37,8 @@ public class ContainerStateMessage implements IMessage {
         @Override public IMessage onMessage(final ContainerStateMessage message,MessageContext ctx){
             Minecraft.getMinecraft().func_152344_a(new Runnable(){@Override public void run(){
                 if(Minecraft.getMinecraft().currentScreen instanceof com.yukar1n.x_tracer.client.gui.GuiXTracerStorage){
-                    ((com.yukar1n.x_tracer.client.gui.GuiXTracerStorage)Minecraft.getMinecraft().currentScreen).applyState(message.name,message.revision,message.accepts,message.excludes);
+                    com.yukar1n.x_tracer.client.gui.GuiXTracerStorage gui = (com.yukar1n.x_tracer.client.gui.GuiXTracerStorage)Minecraft.getMinecraft().currentScreen;
+                    if (gui.isContainer(message.x, message.y, message.z)) gui.applyState(message.name,message.revision,message.accepts,message.excludes);
                 }
             }}); return null;
         }
