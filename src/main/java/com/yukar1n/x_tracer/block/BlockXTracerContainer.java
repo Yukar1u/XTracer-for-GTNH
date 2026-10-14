@@ -8,6 +8,7 @@ import cpw.mods.fml.relauncher.SideOnly;
 import net.minecraft.client.renderer.texture.IIconRegister;
 import net.minecraft.block.BlockContainer;
 import net.minecraft.block.material.Material;
+import net.minecraft.creativetab.CreativeTabs;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
@@ -28,6 +29,7 @@ public class BlockXTracerContainer extends BlockContainer {
         super(Material.iron);
         setBlockName("xtracer_container");
         setBlockTextureName(MyMod.MODID + ":xtracer_container");
+        setCreativeTab(CreativeTabs.tabTools);
         setHardness(3.0F);
         setResistance(10.0F);
     }
