@@ -3,6 +3,8 @@ package com.yukar1n.x_tracer.network;
 import com.yukar1n.x_tracer.CommonProxy;
 import com.yukar1n.x_tracer.Config;
 import com.yukar1n.x_tracer.item.ItemXTracerTerminal;
+import com.yukar1n.x_tracer.server.ChatFeedback;
+import com.yukar1n.x_tracer.storage.ContainerReference;
 import cpw.mods.fml.common.network.simpleimpl.IMessage;
 import cpw.mods.fml.common.network.simpleimpl.IMessageHandler;
 import cpw.mods.fml.common.network.simpleimpl.MessageContext;
@@ -12,10 +14,9 @@ import net.minecraft.block.Block;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
-import net.minecraft.util.ChatComponentText;
+import net.minecraft.util.ChatComponentTranslation;
 import com.yukar1n.x_tracer.OreNames;
 import com.yukar1n.x_tracer.storage.TerminalProfile;
-import net.minecraftforge.oredict.OreDictionary;
 
 import java.nio.charset.Charset;
 import java.util.ArrayList;
@@ -105,7 +106,7 @@ public class TerminalRequestMessage implements IMessage {
                     if (player == null) return;
                     ItemStack held = player.getHeldItem();
                     if (held == null || held.getItem() != ItemXTracerTerminal.INSTANCE) {
-                        error(player, "Hold the terminal first.");
+                        ChatFeedback.send(player, "xtracer.error.hold_terminal");
                         return;
                     }
                     if (action == REQUEST_STATE) {
@@ -115,12 +116,21 @@ public class TerminalRequestMessage implements IMessage {
                     }
                     if (action == SET_REMOTE_INPUT) {
                         TerminalProfile.setRemoteInput(held, drop);
-                        player.addChatMessage(new ChatComponentText("§aXTracer terminal: remote input " + (drop ? "enabled." : "disabled.")));
+                        int bindingCount = TerminalProfile.bindings(held).size();
+                        ChatFeedback.send(player, drop ? "xtracer.remote.enabled" : "xtracer.remote.disabled", bindingCount);
+                        if (drop) {
+                            if (bindingCount == 0) ChatFeedback.send(player, "xtracer.remote.bind_first");
+                            if (!TerminalProfile.drop(held, Config.getPlayerConfig(playerId))) {
+                                ChatFeedback.send(player, "xtracer.remote.scan_only");
+                            }
+                        }
                         return;
                     }
                     TerminalRequestMessage request = new TerminalRequestMessage(action, targets, radius, drop);
-                    if (action == SCAN) com.yukar1n.x_tracer.server.ScanService.enqueueOnServerThread(player);
-                    else handle(request, player);
+                    if (action == SCAN) {
+                        com.yukar1n.x_tracer.server.ScanService.enqueueOnServerThread(player);
+                        sendContainers(player, held);
+                    } else handle(request, player);
                 }
             });
             return null;
@@ -137,21 +147,36 @@ public class TerminalRequestMessage implements IMessage {
         }
 
         private void sendContainers(EntityPlayerMP player, ItemStack held) {
+            List<ContainerReference> bindings = TerminalProfile.pruneBindings(held);
+            // GUI rows read item NBT by index: synchronize the pruned list before its summaries.
+            player.sendContainerToPlayer(player.inventoryContainer);
             List<String> summaries = new ArrayList<>();
-            for (com.yukar1n.x_tracer.storage.ContainerReference reference : TerminalProfile.bindings(held)) {
-                net.minecraft.world.WorldServer world = net.minecraft.server.MinecraftServer.getServer().worldServerForDimension(reference.dimension);
-                if (world == null || !world.getChunkProvider().chunkExists(reference.x >> 4, reference.z >> 4)) {
-                    summaries.add("Offline container @ " + reference.x + "," + reference.y + "," + reference.z);
+            for (ContainerReference reference : bindings) {
+                String location = " | dimension " + reference.dimension + " @ " + reference.x + "," + reference.y + "," + reference.z;
+                String defaultName = "Hyperspace Quantum Containment Node";
+                net.minecraft.world.WorldServer world = TerminalProfile.loadedWorld(reference.dimension);
+                if (world == null) {
+                    summaries.add(defaultName + location + " | dimension unavailable; node status not checked");
+                    continue;
+                }
+                if (!world.getChunkProvider().chunkExists(reference.x >> 4, reference.z >> 4)) {
+                    summaries.add(defaultName + location + " | chunk not loaded; node status not checked");
                     continue;
                 }
                 net.minecraft.tileentity.TileEntity tile = world.getTileEntity(reference.x, reference.y, reference.z);
                 if (!(tile instanceof com.yukar1n.x_tracer.tileentity.TileEntityXTracerContainer)) {
-                    summaries.add("Missing container @ " + reference.x + "," + reference.y + "," + reference.z);
+                    summaries.add(defaultName + location + " | node missing");
                     continue;
                 }
                 com.yukar1n.x_tracer.tileentity.TileEntityXTracerContainer container = (com.yukar1n.x_tracer.tileentity.TileEntityXTracerContainer) tile;
-                summaries.add((container.getCustomName().isEmpty() ? "XTracer Container" : container.getCustomName())
-                    + " | accept: " + join(container.getAccepts()) + " | exclude: " + join(container.getExcludes()));
+                String name = container.getCustomName().isEmpty() ? defaultName : container.getCustomName();
+                if (!reference.uuid.equals(container.getContainerUuid())) {
+                    summaries.add(name + location + " | UUID mismatch; node replaced, rebind required");
+                    continue;
+                }
+                summaries.add(name + location
+                    + " | accept: " + (container.getAccepts().isEmpty() ? "all items" : join(container.getAccepts()))
+                    + " | exclude (takes priority): " + join(container.getExcludes()));
             }
             CommonProxy.network.sendTo(new TerminalContainersMessage(summaries), player);
         }
@@ -168,7 +193,7 @@ public class TerminalRequestMessage implements IMessage {
         private void handle(TerminalRequestMessage message, EntityPlayerMP player) {
             if (message.action == SET_BLOCK) {
                 if (message.targets.size() != 1) {
-                    error(player, "Invalid block target.");
+                    ChatFeedback.send(player, "xtracer.target.invalid_block");
                     return;
                 }
                 String target = message.targets.get(0);
@@ -180,12 +205,12 @@ public class TerminalRequestMessage implements IMessage {
                     catch (NumberFormatException e) { damage = -1; }
                     Item item = itemName.length() == 0 ? null : (Item) Item.itemRegistry.getObject(itemName);
                     if (item == null || damage < 0 || damage > 32767) {
-                        error(player, "Invalid drop item target.");
+                        ChatFeedback.send(player, "xtracer.target.invalid_drop", target);
                         return;
                     }
                     Config.getPlayerConfig(player.getUniqueID()).curMatchMode = "gtName";
                     Config.getPlayerConfig(player.getUniqueID()).targetGtName = item.getUnlocalizedName() + "@" + damage;
-                    player.addChatMessage(new ChatComponentText("§aXTracer terminal: setting updated."));
+                    ChatFeedback.send(player, "xtracer.setting.drop_target", target.substring(5));
                     return;
                 }
                 String[] parts = target.split("@", -1);
@@ -196,36 +221,46 @@ public class TerminalRequestMessage implements IMessage {
                 Block block = id.length == 2 ? GameRegistry.findBlock(id[0], id[1]) : null;
                 Item blockItem = block == null ? null : Item.getItemFromBlock(block);
                 if (block == null || blockItem == null || meta < 0 || meta > 15 || blockItem.getMetadata(meta) < 0) {
-                    error(player, "Invalid block target.");
+                    ChatFeedback.send(player, "xtracer.target.invalid_block");
                     return;
                 }
                 List<String> targetList = new ArrayList<>();
                 targetList.add(target);
                 Config.getPlayerConfig(player.getUniqueID()).curMatchMode = "block";
                 Config.getPlayerConfig(player.getUniqueID()).setTargetBlockID(targetList);
+                ChatFeedback.send(player, "xtracer.setting.block_target", target);
             } else if (message.action == SET_ORE || message.action == SET_ORE_TARGETS) {
                 if (message.targets.isEmpty() || message.targets.size() > MAX_TARGETS) {
-                    error(player, "Select at least one ore dictionary name.");
+                    ChatFeedback.send(player, "xtracer.target.ore_count", MAX_TARGETS);
                     return;
                 }
                 Set<String> normalized = new LinkedHashSet<>();
                 for (String value : message.targets) {
                     String name = OreNames.resolve(value);
                     if (name == null || name.length() > MAX_TARGET_LENGTH) {
-                        error(player, "Invalid ore dictionary name: " + value);
+                        ChatFeedback.send(player, "xtracer.target.invalid_ore", value);
                         return;
                     }
                     normalized.add(name);
                 }
                 Config.getPlayerConfig(player.getUniqueID()).curMatchMode = "ore";
                 Config.getPlayerConfig(player.getUniqueID()).setTargetOreName(new ArrayList<>(normalized));
+                ChatFeedback.send(player, "xtracer.setting.ore_targets", normalized.size(), join(new ArrayList<>(normalized)));
             } else if (message.action == SET_RADIUS) {
-                if (message.radius < 1 || message.radius > Config.getPlayerConfig(player.getUniqueID()).maxRadius) return;
+                int maxRadius = Config.getPlayerConfig(player.getUniqueID()).maxRadius;
+                if (message.radius < 1 || message.radius > maxRadius) {
+                    ChatFeedback.send(player, "xtracer.setting.invalid_radius", message.radius, 1, maxRadius);
+                    return;
+                }
                 Config.getPlayerConfig(player.getUniqueID()).radius = message.radius;
                 TerminalProfile.setRadius(player.getHeldItem(), message.radius);
+                ChatFeedback.send(player, "xtracer.setting.radius", message.radius);
             } else if (message.action == SET_DROP) {
                 Config.getPlayerConfig(player.getUniqueID()).getDrop = message.drop ? "True" : "False";
                 TerminalProfile.setDrop(player.getHeldItem(), message.drop);
+                ChatFeedback.send(player, "xtracer.setting.drop", new ChatComponentTranslation(
+                    message.drop ? "xtracer.state.enabled" : "xtracer.state.disabled"));
+                if (!message.drop) ChatFeedback.send(player, "xtracer.remote.scan_only");
             } else if (message.action == RAY) {
                 final java.util.UUID playerId = player.getUniqueID();
                 com.yukar1n.x_tracer.CommonProxy.serverTaskQueue.enqueue(new Runnable() {
@@ -236,11 +271,6 @@ public class TerminalRequestMessage implements IMessage {
                 });
                 return;
             }
-            player.addChatMessage(new ChatComponentText("§aXTracer terminal: setting updated."));
-        }
-
-        private static void error(EntityPlayerMP player, String message) {
-            player.addChatMessage(new ChatComponentText("§cXTracer: " + message));
         }
     }
 }

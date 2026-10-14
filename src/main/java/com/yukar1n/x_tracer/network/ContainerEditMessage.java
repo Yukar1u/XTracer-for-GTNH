@@ -2,16 +2,17 @@ package com.yukar1n.x_tracer.network;
 
 import com.yukar1n.x_tracer.CommonProxy;
 import com.yukar1n.x_tracer.container.ContainerXTracerStorage;
+import com.yukar1n.x_tracer.server.ChatFeedback;
+import com.yukar1n.x_tracer.storage.ContainerReference;
 import com.yukar1n.x_tracer.tileentity.TileEntityXTracerContainer;
 import cpw.mods.fml.common.network.simpleimpl.IMessage;
 import cpw.mods.fml.common.network.simpleimpl.IMessageHandler;
 import cpw.mods.fml.common.network.simpleimpl.MessageContext;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.entity.player.EntityPlayerMP;
-import net.minecraft.util.ChatComponentText;
+import net.minecraft.util.ChatComponentTranslation;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 public class ContainerEditMessage implements IMessage {
@@ -82,26 +83,49 @@ public class ContainerEditMessage implements IMessage {
             CommonProxy.serverTaskQueue.enqueue(new Runnable() {
                 @Override public void run() {
                     EntityPlayerMP player = CommonProxy.findOnlinePlayer(playerId);
-                    if (player == null || !(player.openContainer instanceof ContainerXTracerStorage)) return;
+                    if (player == null) return;
+                    if (!(player.openContainer instanceof ContainerXTracerStorage)) {
+                        if (message.action == SAVE) ChatFeedback.send(player, "xtracer.container.edit_not_open");
+                        return;
+                    }
                     ContainerXTracerStorage open = (ContainerXTracerStorage) player.openContainer;
                     TileEntityXTracerContainer tile = open.tile;
-                    if (tile.xCoord != message.x || tile.yCoord != message.y || tile.zCoord != message.z) return;
-                    if (!tile.isUseableByPlayer(player)) return;
-                    if (!tile.getOwnerUuid().isEmpty() && !tile.getOwnerUuid().equals(playerId.toString())) {
-                        player.addChatMessage(new ChatComponentText("§cXTracer: only the container owner can edit its rules."));
+                    if (tile.xCoord != message.x || tile.yCoord != message.y || tile.zCoord != message.z) {
+                        if (message.action == SAVE) ChatFeedback.send(player, "xtracer.container.edit_wrong_target");
+                        return;
+                    }
+                    ContainerReference reference = ContainerReference.from(player.worldObj, tile.xCoord, tile.yCoord, tile.zCoord, tile);
+                    if (!tile.isUseableByPlayer(player)) {
+                        if (message.action == SAVE) ChatFeedback.send(player, "xtracer.container.edit_unavailable",
+                            ChatFeedback.node(reference, tile.getCustomName()));
                         return;
                     }
                     if (message.action == REQUEST_STATE) {
                         CommonProxy.network.sendTo(new ContainerStateMessage(message.x, message.y, message.z,
                             tile.getRevision(), tile.getCustomName(), tile.getAccepts(), tile.getExcludes()), player);
-                    } else if (message.action == SAVE) {
+                        return;
+                    }
+                    if (!tile.getOwnerUuid().isEmpty() && !tile.getOwnerUuid().equals(playerId.toString())) {
+                        if (message.action == SAVE) {
+                            ChatFeedback.send(player, "xtracer.container.edit_owner_only", ChatFeedback.node(reference, tile.getCustomName()));
+                            CommonProxy.network.sendTo(new ContainerStateMessage(message.x, message.y, message.z,
+                                tile.getRevision(), tile.getCustomName(), tile.getAccepts(), tile.getExcludes()), player);
+                        }
+                        return;
+                    }
+                    if (message.action == SAVE) {
                         if (!tile.setExpressions(message.accepts, message.excludes, message.revision)) {
-                            player.addChatMessage(new ChatComponentText("§cXTracer: container changed; refresh and try again."));
+                            ChatFeedback.send(player, "xtracer.container.edit_conflict", ChatFeedback.node(reference, tile.getCustomName()));
+                            CommonProxy.network.sendTo(new ContainerStateMessage(message.x, message.y, message.z,
+                                tile.getRevision(), tile.getCustomName(), tile.getAccepts(), tile.getExcludes()), player);
                             return;
                         }
                         tile.setCustomName(message.name);
                         CommonProxy.network.sendTo(new ContainerStateMessage(message.x, message.y, message.z,
                             tile.getRevision(), tile.getCustomName(), tile.getAccepts(), tile.getExcludes()), player);
+                        ChatFeedback.send(player, "xtracer.container.saved", ChatFeedback.node(reference, tile.getCustomName()),
+                            tile.getAccepts().size(), tile.getExcludes().size(), new ChatComponentTranslation(
+                                tile.getAccepts().isEmpty() ? "xtracer.container.accept_all" : "xtracer.container.accept_matches"));
                     }
                 }
             });

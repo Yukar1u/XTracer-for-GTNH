@@ -15,6 +15,8 @@ import net.minecraft.client.renderer.RenderHelper;
 import net.minecraft.client.renderer.entity.RenderItem;
 import org.lwjgl.input.Keyboard;
 import org.lwjgl.input.Mouse;
+import net.minecraft.client.resources.I18n;
+import com.yukar1n.x_tracer.client.gui.IndustrialPanel.PanelButton;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -30,7 +32,14 @@ public class GuiXTracerTerminal extends GuiScreen {
     private static final int COLUMNS = 9;
     private static final int ROWS = 5;
     private static final int PAGE_SIZE = COLUMNS * ROWS;
-    private static final int CELL_SIZE = 24;
+    private static final int CELL_SIZE = 20;
+    private static final int PANEL_WIDTH = 250;
+    private static final int PANEL_HEIGHT = 234;
+    private static final int CONTAINER_ROWS = 4;
+    private static final int CONTAINER_ROW_HEIGHT = 25;
+    private boolean initialized;
+    private boolean radiusDirty;
+    private boolean targetDirty;
     private static final int BLOCK_PAGE = 0;
     private static final int ORE_PAGE = 1;
     private static final int CONTAINER_PAGE = 2;
@@ -65,17 +74,27 @@ public class GuiXTracerTerminal extends GuiScreen {
         Keyboard.enableRepeatEvents(true);
         XTracerCatalog.ensureBuilt();
         ClientConfig config = Config.getPlayerConfig(Minecraft.getMinecraft().thePlayer.getUniqueID());
-        pageType = "ore".equals(config.curMatchMode) ? ORE_PAGE : BLOCK_PAGE;
-        drop = "True".equals(config.getDrop);
-        remoteInput = false;
-        selectedBlock = config.targetList.isEmpty() ? "" : config.targetList.get(0);
-        selectedOres.addAll(config.targetOreNameList);
-        int left = width / 2 - (COLUMNS * CELL_SIZE) / 2;
-        search = new GuiTextField(fontRendererObj, left, 34, COLUMNS * CELL_SIZE, 20);
-        radius = new GuiTextField(fontRendererObj, left, 230, 105, 20);
-        radius.setText(String.valueOf(config.radius));
+        String query = search == null ? "" : search.getText();
+        String radiusDraft = radius == null ? String.valueOf(config.radius) : radius.getText();
+        boolean searchFocused = search != null && search.isFocused();
+        boolean radiusFocused = radius != null && radius.isFocused();
+        if (!initialized) {
+            pageType = "ore".equals(config.curMatchMode) ? ORE_PAGE : BLOCK_PAGE;
+            drop = "True".equals(config.getDrop);
+            selectedBlock = config.targetList.isEmpty() ? "" : config.targetList.get(0);
+            selectedOres.addAll(config.targetOreNameList);
+        }
+        search = new GuiTextField(fontRendererObj, panelLeft() + 9, panelTop() + 39, 232, 14);
+        search.setMaxStringLength(256);
+        search.setText(query);
+        search.setFocused(searchFocused);
+        radius = new GuiTextField(fontRendererObj, panelLeft() + 42, panelTop() + 179, 42, 14);
+        radius.setMaxStringLength(10);
+        radius.setText(radiusDraft);
+        radius.setFocused(radiusFocused);
         rebuildButtons();
-        CommonProxy.network.sendToServer(new TerminalRequestMessage(TerminalRequestMessage.REQUEST_STATE, "", 0, drop));
+        if (!initialized) requestStateRefresh();
+        initialized = true;
     }
 
     public void applyServerState(int serverRadius, boolean serverDrop, String mode, String blockTarget, String oreTargets) {
@@ -83,39 +102,67 @@ public class GuiXTracerTerminal extends GuiScreen {
     }
 
     public void applyServerState(int serverRadius, boolean serverDrop, String mode, String blockTarget, String oreTargets, boolean serverRemoteInput) {
-        radius.setText(String.valueOf(serverRadius));
+        if (!radiusDirty && radius != null) radius.setText(String.valueOf(serverRadius));
         drop = serverDrop;
         remoteInput = serverRemoteInput;
-        selectedBlock = blockTarget == null ? "" : blockTarget;
-        selectedOres.clear();
-        if (oreTargets != null && !oreTargets.isEmpty()) {
-            for (String value : oreTargets.split("\\n")) if (!value.isEmpty()) selectedOres.add(value);
+        if (!targetDirty) {
+            selectedBlock = blockTarget == null ? "" : blockTarget;
+            selectedOres.clear();
+            if (oreTargets != null && !oreTargets.isEmpty()) {
+                for (String value : oreTargets.split("\\n")) if (!value.isEmpty()) selectedOres.add(value);
+            }
         }
-        pageType = "ore".equals(mode) ? ORE_PAGE : BLOCK_PAGE;
+        // A state acknowledgement must not change the tab or discard a local draft.
         rebuildButtons();
     }
 
-    private int gridLeft() {
-        return width / 2 - (COLUMNS * CELL_SIZE) / 2;
+    private int panelLeft() { return (width - PANEL_WIDTH) / 2; }
+    private int panelTop() { return (height - PANEL_HEIGHT) / 2; }
+    private int gridLeft() { return panelLeft() + 35; }
+    private int gridTop() { return panelTop() + 57; }
+    private String text(String key) { return I18n.format("xtracer.gui." + key); }
+    private String toggleLabel(String key, boolean enabled) {
+        return text(key) + ": " + text(enabled ? "on" : "off");
+    }
+
+    private void addButton(int id, int x, int y, int width, String label) {
+        PanelButton button = new PanelButton(id, panelLeft() + x, panelTop() + y, width, 16, label);
+        button.selected = (id == 0 && pageType == BLOCK_PAGE) || (id == 1 && pageType == ORE_PAGE)
+            || (id == 9 && pageType == CONTAINER_PAGE);
+        button.enabled = id != 4 || pageType != CONTAINER_PAGE;
+        buttonList.add(button);
     }
 
     private void rebuildButtons() {
         buttonList.clear();
-        int left = gridLeft();
-        buttonList.add(new GuiButton(0, left, 10, 70, 20, "Block"));
-        buttonList.add(new GuiButton(1, left + 75, 10, 70, 20, "Ore"));
-        buttonList.add(new GuiButton(9, left + 150, 10, 70, 20, "Containers"));
-        buttonList.add(new GuiButton(2, left, 205, 55, 20, "Prev"));
-        buttonList.add(new GuiButton(3, left + 60, 205, 55, 20, "Next"));
-        buttonList.add(new GuiButton(4, left + 120, 205, 100, 20, "Save target"));
-        buttonList.add(new GuiButton(7, left + 110, 230, 110, 20, "Save radius"));
-        buttonList.add(new GuiButton(5, left, 255, 105, 20, "Drops: " + drop));
-        buttonList.add(new GuiButton(10, left + 110, 255, 110, 20, "Remote input: " + remoteInput));
-        buttonList.add(new GuiButton(11, left, 305, 105, 20, "Bind looked-at"));
-        buttonList.add(new GuiButton(12, left + 110, 305, 110, 20, "Unbind looked-at"));
-        buttonList.add(new GuiButton(8, left, 280, 105, 20, "Ray select"));
-        buttonList.add(new GuiButton(6, left + 110, 280, 110, 20, "Trace"));
+        addButton(0, 8, 19, 76, text("blocks"));
+        addButton(1, 87, 19, 76, text("ores"));
+        addButton(9, 166, 19, 76, text("containers"));
+        addButton(2, 8, 159, 38, text("previous"));
+        addButton(3, 49, 159, 38, text("next"));
+        addButton(4, 159, 159, 83, text("save_target"));
+        addButton(7, 89, 178, 45, text("apply_radius"));
+        addButton(5, 137, 178, 105, toggleLabel("drops", drop));
+        addButton(10, 8, 197, 112, toggleLabel("remote_input", remoteInput));
+        addButton(8, 123, 197, 57, text("ray_select"));
+        addButton(6, 183, 197, 59, text("trace"));
+        addButton(11, 8, 216, 115, text("bind_looked_at"));
+        addButton(12, 126, 216, 116, text("unbind_looked_at"));
     }
+
+    private List<ContainerReference> bindings() {
+        return Minecraft.getMinecraft().thePlayer == null ? new ArrayList<ContainerReference>()
+            : TerminalProfile.bindings(Minecraft.getMinecraft().thePlayer.getHeldItem());
+    }
+
+    private int entryCount() {
+        return pageType == CONTAINER_PAGE ? bindings().size()
+            : pageType == BLOCK_PAGE ? groupedBlocks().size() : filteredOres().size();
+    }
+
+    private int pageSize() { return pageType == CONTAINER_PAGE ? CONTAINER_ROWS : PAGE_SIZE; }
+    private int lastPage() { return Math.max(0, (entryCount() - 1) / pageSize()); }
+    private void clampPage() { page = Math.max(0, Math.min(page, lastPage())); }
 
     private void refreshSearchCache() {
         String query = SelectorLogic.matchKey(search.getText());
@@ -163,7 +210,6 @@ public class GuiXTracerTerminal extends GuiScreen {
 
     @Override
     protected void actionPerformed(GuiButton button) {
-        int left = gridLeft();
         if (button.id == 0 || button.id == 1 || button.id == 9) {
             pageType = button.id == 9 ? CONTAINER_PAGE : button.id;
             page = 0;
@@ -171,21 +217,22 @@ public class GuiXTracerTerminal extends GuiScreen {
         } else if (button.id == 2) {
             if (page > 0) page--;
         } else if (button.id == 3) {
-            int size = pageType == BLOCK_PAGE ? groupedBlocks().size() : filteredOres().size();
-            if ((page + 1) * PAGE_SIZE < size) page++;
+            if (page < lastPage()) page++;
         } else if (button.id == 4) {
             if (pageType == BLOCK_PAGE && selectedBlock != null && !selectedBlock.isEmpty()) {
                 CommonProxy.network.sendToServer(new TerminalRequestMessage(TerminalRequestMessage.SET_BLOCK, selectedBlock, 0, drop));
+                targetDirty = false;
             } else if (pageType == ORE_PAGE && !selectedOres.isEmpty()) {
                 CommonProxy.network.sendToServer(new TerminalRequestMessage(new ArrayList<>(selectedOres), drop));
+                targetDirty = false;
             }
         } else if (button.id == 5) {
             drop = !drop;
-            button.displayString = "Drops: " + drop;
+            button.displayString = toggleLabel("drops", drop);
             CommonProxy.network.sendToServer(new TerminalRequestMessage(TerminalRequestMessage.SET_DROP, "", 0, drop));
         } else if (button.id == 10) {
             remoteInput = !remoteInput;
-            button.displayString = "Remote input: " + remoteInput;
+            button.displayString = toggleLabel("remote_input", remoteInput);
             CommonProxy.network.sendToServer(new TerminalRequestMessage(TerminalRequestMessage.SET_REMOTE_INPUT, "", 0, remoteInput));
         } else if (button.id == 6) {
             CommonProxy.network.sendToServer(new TerminalRequestMessage(TerminalRequestMessage.SCAN, "", 0, drop));
@@ -206,16 +253,18 @@ public class GuiXTracerTerminal extends GuiScreen {
         } else if (button.id == 7) {
             try {
                 CommonProxy.network.sendToServer(new TerminalRequestMessage(TerminalRequestMessage.SET_RADIUS, "", Integer.parseInt(radius.getText()), drop));
+                radiusDirty = false;
             } catch (NumberFormatException ignored) {}
         }
     }
 
     @Override
     protected void keyTyped(char typedChar, int keyCode) {
-        if (pageType == CONTAINER_PAGE) { if (keyCode == Keyboard.KEY_ESCAPE) super.keyTyped(typedChar, keyCode); return; }
         String before = search.getText();
-        search.textboxKeyTyped(typedChar, keyCode);
+        String radiusBefore = radius.getText();
+        if (pageType != CONTAINER_PAGE) search.textboxKeyTyped(typedChar, keyCode);
         radius.textboxKeyTyped(typedChar, keyCode);
+        if (!radiusBefore.equals(radius.getText())) radiusDirty = true;
         if (keyCode == Keyboard.KEY_ESCAPE) super.keyTyped(typedChar, keyCode);
         page = SelectorLogic.pageAfterSearch(page, before, search.getText());
     }
@@ -226,15 +275,18 @@ public class GuiXTracerTerminal extends GuiScreen {
         if (pageType != CONTAINER_PAGE) search.mouseClicked(mouseX, mouseY, mouseButton);
         radius.mouseClicked(mouseX, mouseY, mouseButton);
         int left = gridLeft();
-        int top = 60;
-        if (mouseX < left || mouseX >= left + COLUMNS * CELL_SIZE || mouseY < top
-            || mouseY >= top + ROWS * CELL_SIZE) return;
+        int top = gridTop();
         if (pageType == CONTAINER_PAGE) {
-            List<ContainerReference> bindings = TerminalProfile.bindings(Minecraft.getMinecraft().thePlayer.getHeldItem());
-            int row = (mouseY - top) / 28;
-            if (row >= 0 && row < bindings.size()) selectedContainer = row;
+            int row = (mouseY - top) / CONTAINER_ROW_HEIGHT;
+            if (mouseX >= panelLeft() + 8 && mouseX < panelLeft() + 242
+                && mouseY >= top && mouseY < top + CONTAINER_ROWS * CONTAINER_ROW_HEIGHT
+                && page * CONTAINER_ROWS + row < bindings().size()) {
+                selectedContainer = page * CONTAINER_ROWS + row;
+            }
             return;
         }
+        if (mouseX < left || mouseX >= left + COLUMNS * CELL_SIZE || mouseY < top
+            || mouseY >= top + ROWS * CELL_SIZE) return;
         int column = (mouseX - left) / CELL_SIZE;
         int row = (mouseY - top) / CELL_SIZE;
         int index = page * PAGE_SIZE + row * COLUMNS + column;
@@ -250,6 +302,7 @@ public class GuiXTracerTerminal extends GuiScreen {
                 } else {
                     selectedBlock = entry.target();
                     pendingBlock = selectedBlock;
+                    targetDirty = true;
                 }
             }
         } else {
@@ -257,6 +310,7 @@ public class GuiXTracerTerminal extends GuiScreen {
             if (index < entries.size()) {
                 String name = entries.get(index).name;
                 if (!selectedOres.add(name)) selectedOres.remove(name);
+                targetDirty = true;
             }
         }
     }
@@ -266,8 +320,7 @@ public class GuiXTracerTerminal extends GuiScreen {
         super.handleMouseInput();
         int wheel = Mouse.getEventDWheel();
         if (wheel != 0) {
-            int size = pageType == BLOCK_PAGE ? groupedBlocks().size() : filteredOres().size();
-            if (wheel < 0 && (page + 1) * PAGE_SIZE < size) page++;
+            if (wheel < 0 && page < lastPage()) page++;
             if (wheel > 0 && page > 0) page--;
         }
     }
@@ -280,15 +333,26 @@ public class GuiXTracerTerminal extends GuiScreen {
     @Override
     public void drawScreen(int mouseX, int mouseY, float partialTicks) {
         drawDefaultBackground();
-        int left = gridLeft();
-        drawCenteredString(fontRendererObj, "XTracer Terminal", width / 2, 0, 0xFFFFFF);
-        drawString(fontRendererObj, pageType == BLOCK_PAGE ? "Blocks" : pageType == ORE_PAGE ? "Ore Dictionary (ore* only, multi-select)" : "Bound containers (rules are read-only)", left, 58, 0xFFFFFF);
+        clampPage();
+        int left = panelLeft();
+        int top = panelTop();
+        IndustrialPanel.bevel(left, top, PANEL_WIDTH, PANEL_HEIGHT, 0xFF252E34, false);
+        IndustrialPanel.bevel(left + 5, top + 5, 240, 11, 0xFF18242B, true);
+        IndustrialPanel.fitText(fontRendererObj, text("terminal"), left + 10, top + 7, 220, IndustrialPanel.ACCENT, 0.8F);
         if (pageType != CONTAINER_PAGE) search.drawTextBox();
-        if (pageType == CONTAINER_PAGE) drawContainers(left);
-        else drawCatalog(left, mouseX, mouseY);
-        drawString(fontRendererObj, "Radius", left + 112, 235, 0xFFFFFF);
+        else IndustrialPanel.fitText(fontRendererObj, text("containers_read_only"), left + 9, top + 42, 232, IndustrialPanel.MUTED, 0.8F);
+        IndustrialPanel.bevel(left + 8, gridTop() - 1, 234, 102, 0xFF172127, true);
+        IndustrialPanel.fitText(fontRendererObj, (page + 1) + " / " + (lastPage() + 1), left + 92, top + 163, 62, IndustrialPanel.MUTED, 0.8F);
+        IndustrialPanel.fitText(fontRendererObj, text("radius"), left + 8, top + 182, 31, IndustrialPanel.MUTED, 0.75F);
         radius.drawTextBox();
+        for (Object value : buttonList) {
+            GuiButton button = (GuiButton) value;
+            if (button.id == 2) button.enabled = page > 0;
+            if (button.id == 3) button.enabled = page < lastPage();
+        }
         super.drawScreen(mouseX, mouseY, partialTicks);
+        if (pageType == CONTAINER_PAGE) drawContainers(left + 8, mouseX, mouseY);
+        else drawCatalog(gridLeft(), mouseX, mouseY);
     }
 
     private void drawCatalog(int left, int mouseX, int mouseY) {
@@ -300,18 +364,21 @@ public class GuiXTracerTerminal extends GuiScreen {
             for (int i = 0; i < PAGE_SIZE && page * PAGE_SIZE + i < entries.size(); i++) {
                 BlockCatalogEntry entry = entries.get(page * PAGE_SIZE + i);
                 int x = left + (i % COLUMNS) * CELL_SIZE;
-                int y = 60 + (i / COLUMNS) * CELL_SIZE;
+                int y = gridTop() + (i / COLUMNS) * CELL_SIZE;
+                IndustrialPanel.bevel(x, y, CELL_SIZE, CELL_SIZE, 0xFF27343B, true);
                 drawBlockEntry(entry, x, y);
+                org.lwjgl.opengl.GL11.glDisable(org.lwjgl.opengl.GL11.GL_DEPTH_TEST);
                 if (entry.target().equals(selectedBlock)) {
-                    drawRect(x, y, x + CELL_SIZE, y + CELL_SIZE, 0x8033ff66);
-                    drawRect(x, y, x + CELL_SIZE, y + 1, 0xff55ff88);
-                    drawRect(x, y + CELL_SIZE - 1, x + CELL_SIZE, y + CELL_SIZE, 0xff55ff88);
-                    drawRect(x, y, x + 1, y + CELL_SIZE, 0xff55ff88);
-                    drawRect(x + CELL_SIZE - 1, y, x + CELL_SIZE, y + CELL_SIZE, 0xff55ff88);
+                    drawRect(x, y, x + CELL_SIZE, y + CELL_SIZE, 0x4055c5d1);
+                    drawRect(x, y, x + CELL_SIZE, y + 1, 0xff55c5d1);
+                    drawRect(x, y + CELL_SIZE - 1, x + CELL_SIZE, y + CELL_SIZE, 0xff55c5d1);
+                    drawRect(x, y, x + 1, y + CELL_SIZE, 0xff55c5d1);
+                    drawRect(x + CELL_SIZE - 1, y, x + CELL_SIZE, y + CELL_SIZE, 0xff55c5d1);
                 }
                 if (hasVariants(entry, filteredBlocks())) {
                     drawString(fontRendererObj, expandedBlocks.contains(entry.registryName) ? "-" : "+", x + 1, y + 1, 0xFFFFFF);
                 }
+                org.lwjgl.opengl.GL11.glEnable(org.lwjgl.opengl.GL11.GL_DEPTH_TEST);
                 if (isHovered(x, y, mouseX, mouseY)) {
                     hover = java.util.Arrays.asList(entry.displayName, entry.target());
                 }
@@ -321,8 +388,9 @@ public class GuiXTracerTerminal extends GuiScreen {
             for (int i = 0; i < PAGE_SIZE && page * PAGE_SIZE + i < entries.size(); i++) {
                 OreCatalogEntry entry = entries.get(page * PAGE_SIZE + i);
                 int x = left + (i % COLUMNS) * CELL_SIZE;
-                int y = 60 + (i / COLUMNS) * CELL_SIZE;
-                drawString(fontRendererObj, selectedOres.contains(entry.name) ? "X" : "·", x + 8, y + 7, selectedOres.contains(entry.name) ? 0x55FF55 : 0xAAAAAA);
+                int y = gridTop() + (i / COLUMNS) * CELL_SIZE;
+                IndustrialPanel.bevel(x, y, CELL_SIZE, CELL_SIZE, 0xFF27343B, true);
+                drawString(fontRendererObj, selectedOres.contains(entry.name) ? "X" : "·", x + 8, y + 7, selectedOres.contains(entry.name) ? IndustrialPanel.ACCENT : IndustrialPanel.MUTED);
                 if (isHovered(x, y, mouseX, mouseY)) hover = java.util.Collections.singletonList(entry.name);
             }
         }
@@ -342,7 +410,7 @@ public class GuiXTracerTerminal extends GuiScreen {
 
     private void drawBlockEntry(BlockCatalogEntry entry, int x, int y) {
         try {
-            renderItem.renderItemAndEffectIntoGUI(fontRendererObj, Minecraft.getMinecraft().getTextureManager(), entry.stack, x + 4, y + 4);
+            renderItem.renderItemAndEffectIntoGUI(fontRendererObj, Minecraft.getMinecraft().getTextureManager(), entry.stack, x + 2, y + 2);
         } catch (Throwable ignored) {
             drawRect(x + 5, y + 5, x + 19, y + 19, 0xff555555);
         }
@@ -356,25 +424,30 @@ public class GuiXTracerTerminal extends GuiScreen {
         containerSummaries = summaries == null ? new ArrayList<String>() : new ArrayList<>(summaries);
     }
 
-    private void drawContainers(int left) {
-        List<ContainerReference> bindings = new ArrayList<>();
-        if (Minecraft.getMinecraft().thePlayer != null && Minecraft.getMinecraft().thePlayer.getHeldItem() != null) {
-            bindings = TerminalProfile.bindings(Minecraft.getMinecraft().thePlayer.getHeldItem());
-        }
+    private void drawContainers(int left, int mouseX, int mouseY) {
+        List<ContainerReference> bindings = bindings();
         if (bindings.isEmpty()) {
-            drawString(fontRendererObj, "No bound containers", left, 82, 0xAAAAAA);
+            IndustrialPanel.fitText(fontRendererObj, text("no_containers"), left + 6, gridTop() + 10, 222, IndustrialPanel.MUTED, 0.8F);
             return;
         }
-        int y = 82;
-        for (int i = 0; i < bindings.size() && i < 8; i++) {
-            ContainerReference ref = bindings.get(i);
-            if (i == selectedContainer) drawRect(left - 2, y - 2, left + 220, y + 22, 0x5533aa66);
-            drawString(fontRendererObj, (i + 1) + ". " + ref.dimension + "  " + ref.x + "," + ref.y + "," + ref.z, left, y, 0xFFFFFF);
-            String summary = i < containerSummaries.size() ? containerSummaries.get(i) : "Rules are configured on the container";
-            drawString(fontRendererObj, summary.length() > 52 ? summary.substring(0, 52) : summary, left + 8, y + 12, 0xAAAAAA);
-            y += 28;
+        selectedContainer = Math.max(0, Math.min(selectedContainer, bindings.size() - 1));
+        List<String> hover = null;
+        for (int row = 0; row < CONTAINER_ROWS && page * CONTAINER_ROWS + row < bindings.size(); row++) {
+            int index = page * CONTAINER_ROWS + row;
+            int y = gridTop() + row * CONTAINER_ROW_HEIGHT;
+            ContainerReference ref = bindings.get(index);
+            IndustrialPanel.bevel(left, y, 234, CONTAINER_ROW_HEIGHT, index == selectedContainer ? 0xFF29434D : 0xFF202D34, true);
+            String location = (index + 1) + ". " + ref.dimension + "  " + ref.x + "," + ref.y + "," + ref.z;
+            String summary = index < containerSummaries.size() ? containerSummaries.get(index) : text("container_rules_hint");
+            IndustrialPanel.fitText(fontRendererObj, location, left + 5, y + 4, 224, IndustrialPanel.TEXT, 0.8F);
+            IndustrialPanel.fitText(fontRendererObj, summary, left + 5, y + 14, 224, IndustrialPanel.MUTED, 0.75F);
+            if (mouseX >= left && mouseX < left + 234 && mouseY >= y && mouseY < y + CONTAINER_ROW_HEIGHT) {
+                hover = new ArrayList<>();
+                hover.add(location);
+                hover.addAll(fontRendererObj.listFormattedStringToWidth(summary, 230));
+            }
         }
-        drawString(fontRendererObj, "Remote input: " + (remoteInput ? "enabled" : "disabled"), left, 200, remoteInput ? 0x55FF55 : 0xAAAAAA);
+        if (hover != null) drawHoveringText(hover, mouseX, mouseY, fontRendererObj);
     }
 
     private boolean isHovered(int x, int y, int mouseX, int mouseY) {

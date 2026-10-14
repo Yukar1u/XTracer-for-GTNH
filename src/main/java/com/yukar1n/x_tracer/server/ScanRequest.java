@@ -46,6 +46,6 @@ public final class ScanRequest {
         return new ScanRequest(playerId, TerminalProfile.radius(terminal, config), config.curMatchMode,
             config.targetList, config.targetOreNameList, config.targetGtName,
             TerminalProfile.drop(terminal, config), TerminalProfile.remoteInput(terminal),
-            TerminalProfile.bindings(terminal));
+            TerminalProfile.pruneBindings(terminal));
     }
 }

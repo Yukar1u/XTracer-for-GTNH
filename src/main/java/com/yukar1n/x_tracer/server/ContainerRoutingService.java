@@ -2,11 +2,12 @@ package com.yukar1n.x_tracer.server;
 
 import com.yukar1n.x_tracer.storage.ContainerReference;
 import com.yukar1n.x_tracer.storage.ItemKey;
+import com.yukar1n.x_tracer.storage.RoutingMatcher;
 import com.yukar1n.x_tracer.tileentity.TileEntityXTracerContainer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.world.World;
 import net.minecraft.world.WorldServer;
+import net.minecraft.world.chunk.Chunk;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -17,6 +18,11 @@ public final class ContainerRoutingService {
     private ContainerRoutingService() {}
 
     public static Result route(List<ItemStack> drops, List<ContainerReference> references) {
+        return route(drops, references, null);
+    }
+
+    public static Result route(List<ItemStack> drops, List<ContainerReference> references, Map<ItemKey, String> localizedNames) {
+        Result result = new Result();
         Map<ItemKey, Long> totals = new LinkedHashMap<>();
         Map<ItemKey, ItemStack> samples = new LinkedHashMap<>();
         for (ItemStack drop : drops) {
@@ -24,19 +30,36 @@ public final class ContainerRoutingService {
             ItemKey key = ItemKey.fromStack(drop);
             if (key == null) continue;
             long old = totals.containsKey(key) ? totals.get(key) : 0L;
-            if (Long.MAX_VALUE - old < drop.stackSize) return Result.failure();
+            if (Long.MAX_VALUE - old < drop.stackSize) {
+                result.success = false;
+                result.failureReason = "xtracer.route.amount_overflow";
+                return result;
+            }
             totals.put(key, old + drop.stackSize);
             samples.put(key, drop.copy());
         }
 
-        List<Destination> destinations = resolve(references);
+        List<Destination> destinations = resolve(references, result);
+        result.availableNodes = destinations.size();
         Map<Destination, Map<ItemKey, Long>> plan = new LinkedHashMap<>();
-        List<ItemStack> fallback = new ArrayList<>();
+        List<Destination> matched = new ArrayList<>();
         for (Map.Entry<ItemKey, Long> entry : totals.entrySet()) {
             List<Destination> candidates = new ArrayList<>();
-            for (Destination destination : destinations) if (destination.tile.accepts(entry.getKey())) candidates.add(destination);
+            for (Destination destination : destinations) {
+                RoutingMatcher.Decision decision = localizedNames == null
+                    ? destination.tile.evaluateRouting(entry.getKey())
+                    : destination.tile.evaluateRouting(entry.getKey(), localizedNames.get(entry.getKey()));
+                if (decision.accepted) {
+                    candidates.add(destination);
+                    if (!matched.contains(destination)) matched.add(destination);
+                } else {
+                    result.rejected.add(new Rejection(destination, entry.getKey(), decision));
+                }
+            }
+            result.matches.put(entry.getKey(), candidates.size());
             if (candidates.isEmpty()) {
-                addChunked(fallback, samples.get(entry.getKey()), entry.getValue());
+                result.unmatched.put(entry.getKey(), entry.getValue());
+                addChunked(result.fallback, samples.get(entry.getKey()), entry.getValue());
                 continue;
             }
             long base = entry.getValue() / candidates.size();
@@ -50,30 +73,59 @@ public final class ContainerRoutingService {
                 values.put(entry.getKey(), count);
             }
         }
+        result.matchedNodes = matched.size();
 
-        List<Deposit> deposits = new ArrayList<>();
         for (Map.Entry<Destination, Map<ItemKey, Long>> destination : plan.entrySet()) {
             for (Map.Entry<ItemKey, Long> item : destination.getValue().entrySet()) {
-                if (!destination.getKey().tile.canDeposit(item.getKey(), item.getValue())) return Result.failure();
-                deposits.add(new Deposit(destination.getKey().tile, item.getKey(), item.getValue()));
+                if (!destination.getKey().tile.canDeposit(item.getKey(), item.getValue())) {
+                    result.success = false;
+                    result.failureReason = "xtracer.route.node_overflow";
+                    result.failedNode = destination.getKey().reference;
+                    result.failedName = destination.getKey().tile.getCustomName();
+                    result.failedItem = item.getKey();
+                    return result;
+                }
+                result.deposits.add(new Deposit(destination.getKey(), item.getKey(), item.getValue()));
             }
         }
-        return new Result(true, fallback, deposits);
+        return result;
     }
 
-    private static List<Destination> resolve(List<ContainerReference> references) {
+    private static List<Destination> resolve(List<ContainerReference> references, Result report) {
         List<Destination> result = new ArrayList<>();
-        if (references == null || MinecraftServer.getServer() == null) return result;
+        if (references == null) return result;
         for (ContainerReference reference : references) {
-            WorldServer world = MinecraftServer.getServer().worldServerForDimension(reference.dimension);
-            if (world == null || !world.getChunkProvider().chunkExists(reference.x >> 4, reference.z >> 4)) continue;
-            if (world.getBlock(reference.x, reference.y, reference.z) != com.yukar1n.x_tracer.block.BlockXTracerContainer.INSTANCE) continue;
-            if (!(world.getTileEntity(reference.x, reference.y, reference.z) instanceof TileEntityXTracerContainer)) continue;
-            TileEntityXTracerContainer tile = (TileEntityXTracerContainer) world.getTileEntity(reference.x, reference.y, reference.z);
-            if (!reference.uuid.equals(tile.getContainerUuid())) continue;
-            boolean duplicate = false;
-            for (Destination existing : result) if (existing.tile == tile) duplicate = true;
-            if (!duplicate) result.add(new Destination(tile));
+            if (MinecraftServer.getServer() == null) {
+                report.unavailable.add(new Unavailable(reference, "xtracer.route.dimension_unavailable"));
+                continue;
+            }
+            WorldServer world = com.yukar1n.x_tracer.storage.TerminalProfile.loadedWorld(reference.dimension);
+            if (world == null) {
+                report.unavailable.add(new Unavailable(reference, "xtracer.route.dimension_unavailable"));
+                continue;
+            }
+            int chunkX = reference.x >> 4;
+            int chunkZ = reference.z >> 4;
+            boolean wasLoaded = world.getChunkProvider().chunkExists(chunkX, chunkZ);
+            Chunk chunk = null;
+            try {
+                if (!wasLoaded) chunk = world.getChunkFromChunkCoords(chunkX, chunkZ);
+                if (world.getBlock(reference.x, reference.y, reference.z) != com.yukar1n.x_tracer.block.BlockXTracerContainer.INSTANCE
+                    || !(world.getTileEntity(reference.x, reference.y, reference.z) instanceof TileEntityXTracerContainer)) {
+                    report.unavailable.add(new Unavailable(reference, "xtracer.route.node_missing"));
+                    continue;
+                }
+                TileEntityXTracerContainer tile = (TileEntityXTracerContainer) world.getTileEntity(reference.x, reference.y, reference.z);
+                if (!reference.uuid.equals(tile.getContainerUuid())) {
+                    report.unavailable.add(new Unavailable(reference, "xtracer.route.node_replaced"));
+                    continue;
+                }
+                boolean duplicate = false;
+                for (Destination existing : result) if (existing.tile == tile) duplicate = true;
+                if (!duplicate) result.add(new Destination(tile, reference));
+            } finally {
+                if (!wasLoaded && chunk != null) world.getChunkProvider().unloadQueuedChunks();
+            }
         }
         return result;
     }
@@ -88,12 +140,25 @@ public final class ContainerRoutingService {
     }
 
     public static final class Result {
-        public final boolean success;
-        public final List<ItemStack> fallback;
-        private final List<Deposit> deposits;
-        private Result(boolean success, List<ItemStack> fallback, List<Deposit> deposits) { this.success=success;this.fallback=fallback;this.deposits=deposits; }
-        private static Result failure() { return new Result(false, new ArrayList<ItemStack>(), new ArrayList<Deposit>()); }
+        public boolean success = true;
+        public final List<ItemStack> fallback = new ArrayList<>();
+        public final List<Unavailable> unavailable = new ArrayList<>();
+        public final List<Rejection> rejected = new ArrayList<>();
+        public final Map<ItemKey, Integer> matches = new LinkedHashMap<>();
+        public final Map<ItemKey, Long> unmatched = new LinkedHashMap<>();
+        public int availableNodes;
+        public int matchedNodes;
+        public String failureReason;
+        public ContainerReference failedNode;
+        public String failedName;
+        public ItemKey failedItem;
+        private final List<Deposit> deposits = new ArrayList<>();
+        private boolean committed;
+
+        public List<Deposit> deposits() { return java.util.Collections.unmodifiableList(deposits); }
+
         public boolean commit() {
+            if (!success || committed) return false;
             List<Deposit> applied = new ArrayList<>();
             for (Deposit deposit : deposits) {
                 if (!deposit.tile.deposit(deposit.key, deposit.count)) {
@@ -102,10 +167,51 @@ public final class ContainerRoutingService {
                 }
                 applied.add(deposit);
             }
+            committed = true;
             return true;
         }
-        public void rollback() { for (Deposit deposit : deposits) deposit.tile.withdraw(deposit.key, deposit.count); }
+        public void rollback() {
+            if (!committed) return;
+            for (Deposit deposit : deposits) deposit.tile.withdraw(deposit.key, deposit.count);
+            committed = false;
+        }
     }
-    private static final class Destination { private final TileEntityXTracerContainer tile; private Destination(TileEntityXTracerContainer tile){this.tile=tile;} }
-    private static final class Deposit { private final TileEntityXTracerContainer tile; private final ItemKey key; private final long count; private Deposit(TileEntityXTracerContainer tile,ItemKey key,long count){this.tile=tile;this.key=key;this.count=count;} }
+
+    public static final class Rejection {
+        public final ContainerReference reference;
+        public final String name;
+        public final ItemKey item;
+        public final RoutingMatcher.Decision decision;
+        private Rejection(Destination destination, ItemKey item, RoutingMatcher.Decision decision) {
+            this.reference = destination.reference;
+            this.name = destination.tile.getCustomName();
+            this.item = item;
+            this.decision = decision;
+        }
+    }
+
+    public static final class Unavailable {
+        public final ContainerReference reference;
+        public final String reason;
+        private Unavailable(ContainerReference reference, String reason) { this.reference = reference; this.reason = reason; }
+    }
+    private static final class Destination {
+        private final TileEntityXTracerContainer tile;
+        private final ContainerReference reference;
+        private Destination(TileEntityXTracerContainer tile, ContainerReference reference) { this.tile = tile; this.reference = reference; }
+    }
+    public static final class Deposit {
+        private final TileEntityXTracerContainer tile;
+        public final ContainerReference reference;
+        public final String name;
+        public final ItemKey key;
+        public final long count;
+        private Deposit(Destination destination, ItemKey key, long count) {
+            this.tile = destination.tile;
+            this.reference = destination.reference;
+            this.name = tile.getCustomName();
+            this.key = key;
+            this.count = count;
+        }
+    }
 }

@@ -16,6 +16,7 @@ public class ServerTaskQueue {
     @SubscribeEvent
     public void onServerTick(TickEvent.ServerTickEvent event) {
         if (event.phase != TickEvent.Phase.END) return;
+        LocalizedNameService.tick();
         Runnable task;
         while ((task = tasks.poll()) != null) {
             try {

@@ -4,6 +4,7 @@ import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 
+import java.util.Locale;
 import java.util.Objects;
 
 public final class ItemKey {
@@ -38,14 +39,36 @@ public final class ItemKey {
     public NBTTagCompound tag() { return tag == null ? null : (NBTTagCompound) tag.copy(); }
 
     public String displayText() {
-        Item item = (Item) Item.itemRegistry.getObject(itemId);
-        return item == null ? itemId : item.getItemStackDisplayName(toStack(1));
+        try {
+            ItemStack stack = toStack(1);
+            if (stack != null) {
+                String name = stack.getItem().getItemStackDisplayName(stack);
+                if (name != null && !name.isEmpty()) return name;
+            }
+        } catch (RuntimeException | LinkageError ignored) {
+            // Some mod names require client-only classes or an initialized translation system.
+        }
+        return itemId;
     }
 
     public String matchText() {
-        Item item = (Item) Item.itemRegistry.getObject(itemId);
-        String unlocalized = item == null ? "" : item.getUnlocalizedName();
-        return (displayText() + " " + itemId + " " + unlocalized + "@" + damage).toLowerCase();
+        return matchText(displayText());
+    }
+
+    /** The initiating client's actual display name replaces the server's translation. */
+    public String matchText(String localizedDisplayName) {
+        StringBuilder text = new StringBuilder(itemId).append(' ').append(itemId).append('@').append(damage);
+        try {
+            ItemStack stack = toStack(1);
+            if (stack != null) {
+                String name = stack.getItem().getUnlocalizedName(stack);
+                if (name != null && !name.isEmpty()) text.append(' ').append(name).append('@').append(damage);
+            }
+        } catch (RuntimeException | LinkageError ignored) {
+            // Keep registry identifiers matchable if this optional name is unavailable.
+        }
+        if (localizedDisplayName != null && !localizedDisplayName.isEmpty()) text.append(' ').append(localizedDisplayName);
+        return text.toString().toLowerCase(Locale.ROOT);
     }
 
     @Override

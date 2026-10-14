@@ -1,9 +1,14 @@
 package com.yukar1n.x_tracer.storage;
 
 import com.yukar1n.x_tracer.ClientConfig;
+import com.yukar1n.x_tracer.block.BlockXTracerContainer;
+import com.yukar1n.x_tracer.tileentity.TileEntityXTracerContainer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.tileentity.TileEntity;
+import net.minecraft.world.WorldServer;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -58,6 +63,41 @@ public final class TerminalProfile {
             result.add(ContainerReference.readFromNBT(list.getCompoundTagAt(i)));
         }
         return result;
+    }
+
+    /** Looks up only loaded worlds; worldServerForDimension can initialize an unavailable dimension. */
+    public static WorldServer loadedWorld(int dimension) {
+        MinecraftServer server = MinecraftServer.getServer();
+        if (server == null || server.worldServers == null) return null;
+        for (WorldServer world : server.worldServers) {
+            if (world != null && !world.isRemote && world.provider.dimensionId == dimension) return world;
+        }
+        return null;
+    }
+
+    /** Server-thread only: keep unchecked references until their world and chunk are loaded. */
+    public static List<ContainerReference> pruneBindings(ItemStack stack) {
+        List<ContainerReference> previous = bindings(stack);
+        List<ContainerReference> retained = new ArrayList<>();
+        int active = activeBinding(stack);
+        int nextActive = -1;
+        for (int i = 0; i < previous.size(); i++) {
+            ContainerReference reference = previous.get(i);
+            WorldServer world = loadedWorld(reference.dimension);
+            if (world != null && world.getChunkProvider().chunkExists(reference.x >> 4, reference.z >> 4)) {
+                if (world.getBlock(reference.x, reference.y, reference.z) != BlockXTracerContainer.INSTANCE) continue;
+                TileEntity tile = world.getTileEntity(reference.x, reference.y, reference.z);
+                if (!(tile instanceof TileEntityXTracerContainer)
+                    || !reference.uuid.equals(((TileEntityXTracerContainer) tile).getContainerUuid())) continue;
+            }
+            if (i == active) nextActive = retained.size();
+            retained.add(reference);
+        }
+        if (retained.size() != previous.size()) setBindings(stack, retained);
+        // Preserve the selected node as preceding entries disappear; fall back safely if it was removed.
+        if (nextActive < 0) nextActive = Math.max(0, Math.min(active, retained.size() - 1));
+        if (nextActive != active) setActiveBinding(stack, nextActive);
+        return retained;
     }
 
     public static void setBindings(ItemStack stack, List<ContainerReference> bindings) {

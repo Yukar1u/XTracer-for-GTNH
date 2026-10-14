@@ -7,7 +7,6 @@ import com.yukar1n.x_tracer.network.FoundBlocksMessage;
 import net.minecraft.block.Block;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.item.ItemStack;
-import net.minecraft.util.ChatComponentText;
 import net.minecraft.util.MathHelper;
 import net.minecraft.world.World;
 
@@ -30,9 +29,13 @@ public final class ScanService {
 
     public static void enqueueOnServerThread(EntityPlayerMP player) {
         java.util.UUID playerId = player.getUniqueID();
+        if (LocalizedNameService.hasPending(playerId)) {
+            ChatFeedback.send(player, "xtracer.names.busy");
+            return;
+        }
         net.minecraft.item.ItemStack terminal = player.getHeldItem();
         if (terminal == null || terminal.getItem() != com.yukar1n.x_tracer.item.ItemXTracerTerminal.INSTANCE) {
-            player.addChatMessage(new ChatComponentText("§cXTracer: hold the terminal first."));
+            ChatFeedback.send(player, "xtracer.terminal.hold");
             return;
         }
         scan(player, ScanRequest.from(playerId, Config.getPlayerConfig(playerId), terminal));
@@ -54,9 +57,25 @@ public final class ScanService {
                 }
             }
         }
-        player.addChatMessage(new ChatComponentText("§b§k:" + "§bTrace Out: " + found.size() + " §bObject§b§k:"));
+        ChatFeedback.send(player, "xtracer.scan.result", request.radius, found.size());
         CommonProxy.network.sendTo(new FoundBlocksMessage(found), player);
-        if (request.drop) DropService.remove(player, found, request);
+        if (found.isEmpty()) {
+            ChatFeedback.send(player, "xtracer.scan.no_matches");
+        } else if (request.drop) {
+            if (request.remoteInput) {
+                DropService.Prepared prepared = DropService.prepare(player, found);
+                if (prepared == null || prepared.sourceCount() != found.size()) {
+                    ChatFeedback.send(player, "xtracer.names.limit");
+                } else {
+                    LocalizedNameService.begin(player, prepared, request);
+                }
+            } else {
+                DropService.remove(player, found, request);
+            }
+        } else {
+            ChatFeedback.send(player, "xtracer.scan.highlight_only");
+            if (request.remoteInput) ChatFeedback.send(player, "xtracer.scan.remote_requires_drops");
+        }
     }
 
     private static boolean matches(World world, int x, int y, int z, ScanRequest request) {
