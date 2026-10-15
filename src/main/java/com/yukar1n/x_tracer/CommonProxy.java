@@ -11,6 +11,7 @@ import com.yukar1n.x_tracer.network.ContainerEditMessage;
 import com.yukar1n.x_tracer.network.ContainerStateMessage;
 import com.yukar1n.x_tracer.network.TerminalBindingMessage;
 import com.yukar1n.x_tracer.network.TerminalContainersMessage;
+import com.yukar1n.x_tracer.network.TerminalContainerEditMessage;
 import com.yukar1n.x_tracer.network.ContainerContentsMessage;
 import com.yukar1n.x_tracer.network.ContainerContentsRequestMessage;
 import com.yukar1n.x_tracer.network.ContainerExtractMessage;
@@ -99,6 +100,7 @@ public class CommonProxy {
         network.registerMessage(ContainerExtractMessage.Handler.class, ContainerExtractMessage.class, 10, Side.SERVER);
         network.registerMessage(ItemNameLookupReplyMessage.Handler.class, ItemNameLookupReplyMessage.class, 11, Side.SERVER);
         network.registerMessage(ItemNameLookupMessage.Handler.class, ItemNameLookupMessage.class, 12, Side.CLIENT);
+        network.registerMessage(TerminalContainerEditMessage.Handler.class, TerminalContainerEditMessage.class, 13, Side.SERVER);
 
         ItemXTracerTerminal.register();
         BlockXTracerContainer.register();

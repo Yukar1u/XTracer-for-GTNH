@@ -35,7 +35,7 @@ public class TerminalRequestMessage implements IMessage {
     public static final byte SET_ORE_TARGETS = 7;
     public static final byte REQUEST_STATE = 8;
     public static final byte SET_REMOTE_INPUT = 9;
-    private static final int MAX_TARGETS = 64;
+    public static final int MAX_TARGETS = 64;
     private static final int MAX_TARGET_LENGTH = 128;
 
     private byte action;
@@ -146,42 +146,48 @@ public class TerminalRequestMessage implements IMessage {
                 config.curMatchMode, block, ores, TerminalProfile.remoteInput(held)), player);
         }
 
-        private void sendContainers(EntityPlayerMP player, ItemStack held) {
+        public static void sendContainers(EntityPlayerMP player, ItemStack held) {
             List<ContainerReference> bindings = TerminalProfile.pruneBindings(held);
             // GUI rows read item NBT by index: synchronize the pruned list before its summaries.
             player.sendContainerToPlayer(player.inventoryContainer);
             List<String> summaries = new ArrayList<>();
+            List<Boolean> enabled = new ArrayList<>();
             for (ContainerReference reference : bindings) {
                 String location = " | dimension " + reference.dimension + " @ " + reference.x + "," + reference.y + "," + reference.z;
                 String defaultName = "Hyperspace Quantum Containment Node";
                 net.minecraft.world.WorldServer world = TerminalProfile.loadedWorld(reference.dimension);
                 if (world == null) {
                     summaries.add(defaultName + location + " | dimension unavailable; node status not checked");
+                    enabled.add(reference.routeEnabled);
                     continue;
                 }
                 if (!world.getChunkProvider().chunkExists(reference.x >> 4, reference.z >> 4)) {
                     summaries.add(defaultName + location + " | chunk not loaded; node status not checked");
+                    enabled.add(reference.routeEnabled);
                     continue;
                 }
                 net.minecraft.tileentity.TileEntity tile = world.getTileEntity(reference.x, reference.y, reference.z);
                 if (!(tile instanceof com.yukar1n.x_tracer.tileentity.TileEntityXTracerContainer)) {
                     summaries.add(defaultName + location + " | node missing");
+                    enabled.add(reference.routeEnabled);
                     continue;
                 }
                 com.yukar1n.x_tracer.tileentity.TileEntityXTracerContainer container = (com.yukar1n.x_tracer.tileentity.TileEntityXTracerContainer) tile;
                 String name = container.getCustomName().isEmpty() ? defaultName : container.getCustomName();
                 if (!reference.uuid.equals(container.getContainerUuid())) {
                     summaries.add(name + location + " | UUID mismatch; node replaced, rebind required");
+                    enabled.add(reference.routeEnabled);
                     continue;
                 }
                 summaries.add(name + location
                     + " | accept: " + (container.getAccepts().isEmpty() ? "all items" : join(container.getAccepts()))
                     + " | exclude (takes priority): " + join(container.getExcludes()));
+                enabled.add(reference.routeEnabled);
             }
-            CommonProxy.network.sendTo(new TerminalContainersMessage(summaries), player);
+            CommonProxy.network.sendTo(new TerminalContainersMessage(summaries, enabled), player);
         }
 
-        private String join(List<String> values) {
+        private static String join(List<String> values) {
             StringBuilder result = new StringBuilder();
             for (String value : values) {
                 if (result.length() > 0) result.append('\n');

@@ -26,6 +26,14 @@ public final class SelectorLogic {
         return before.equals(after) ? page : 0;
     }
 
+    public static boolean toggleOreSelection(java.util.Set<String> selected, String name, int limit) {
+        String key = matchKey(name);
+        if (selected.remove(key)) return true;
+        if (selected.size() >= limit) return false;
+        selected.add(key);
+        return true;
+    }
+
     public static boolean needsDropTarget(boolean special, int itemDamage, int worldMetadata) {
         return special || itemDamage > 15 || worldMetadata < 0 || worldMetadata > 15;
     }

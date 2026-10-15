@@ -100,6 +100,45 @@ public final class TerminalProfile {
         return retained;
     }
 
+    public static List<ContainerReference> enabledBindings(ItemStack stack) {
+        List<ContainerReference> result = new ArrayList<>();
+        for (ContainerReference reference : pruneBindings(stack)) if (reference.routeEnabled) result.add(reference);
+        return result;
+    }
+
+    public static boolean updateBinding(ItemStack stack, ContainerReference expected, boolean enabled) {
+        List<ContainerReference> current = bindings(stack);
+        for (int i = 0; i < current.size(); i++) {
+            ContainerReference reference = current.get(i);
+            if (sameIdentity(reference, expected)) {
+                current.set(i, reference.withRouteEnabled(enabled));
+                setBindings(stack, current);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public static boolean removeBinding(ItemStack stack, ContainerReference expected) {
+        List<ContainerReference> current = bindings(stack);
+        for (int i = 0; i < current.size(); i++) {
+            if (sameIdentity(current.get(i), expected)) {
+                current.remove(i);
+                setBindings(stack, current);
+                int active = activeBinding(stack);
+                setActiveBinding(stack, current.isEmpty() ? 0 : Math.min(active, current.size() - 1));
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public static boolean sameIdentity(ContainerReference first, ContainerReference second) {
+        return first != null && second != null && first.dimension == second.dimension
+            && first.x == second.x && first.y == second.y && first.z == second.z
+            && first.uuid.equals(second.uuid);
+    }
+
     public static void setBindings(ItemStack stack, List<ContainerReference> bindings) {
         NBTTagList list = new NBTTagList();
         int count = 0;
